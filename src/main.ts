@@ -5,13 +5,14 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { createUnoServer } from "./server.js";
 import { registerUnoFlex } from "./UnoFlex.js";
 import { registerPresence } from "./Presence.js";
+import { registerClassicPowers } from "./ClassicPowers.js";
 
 const server = createUnoServer();
 registerUnoFlex(server.io);
 registerPresence(server.io);
+registerClassicPowers(server.io, server.rooms);
 
 // Pretty invite links such as /room=ABCD?mode=classic or ?mode=flex.
-// Keep Socket.IO and the existing Express app untouched for every other request.
 const originalRequestListeners = server.http.listeners("request");
 server.http.removeAllListeners("request");
 server.http.on("request", (req: IncomingMessage, res: ServerResponse) => {
