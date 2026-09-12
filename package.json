@@ -7,9 +7,9 @@
     "node": ">=22.9"
   },
   "scripts": {
-    "dev": "node --import tsx --watch src/server.ts",
+    "dev": "node --import tsx --watch src/main.ts",
     "build": "tsc",
-    "start": "node --env-file-if-exists=.env dist/server.js",
+    "start": "node --env-file-if-exists=.env dist/main.js",
     "test": "node --import tsx --test tests/*.test.ts",
     "check": "tsc --noEmit",
     "format": "prettier --write src client tests README.md package.json tsconfig.json compose.yaml"
