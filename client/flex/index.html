@@ -7,6 +7,7 @@
   <title>UNO Flex · DBT Games</title>
   <link rel="stylesheet" href="/flex/flex.css" />
   <script defer src="/socket.io/socket.io.js"></script>
+  <script defer src="/flex/socket-hook.js"></script>
   <script defer src="/flex/flex.js"></script>
   <script defer src="/flex/enhancements.js"></script>
 </head>
@@ -39,9 +40,21 @@
 
   <section id="lobby" class="screen panel flex-lobby" hidden>
     <span class="chip">FLEX WAITING ROOM</span><h2>Room <button id="room-code-show" class="code"></button></h2>
-    <p>Everyone starts with Power ON. Ready up when your squad is here.</p>
+    <p>Everyone starts with Flex Power ON. Ready up when your squad is here.</p>
     <div class="lobby-tools"><button id="lobby-tutorial" class="ghost" type="button">📖 Flex Tutorial</button><button id="lobby-power-help" class="ghost" type="button">⚡ Power Card Guide</button></div>
     <div id="flex-share-box" class="flex-share-box" hidden><b>🔗 INSTANT JOIN LINK</b><small>Share this link. Your friend enters a name and joins this Flex room.</small><div class="flex-share-row"><input id="flex-share-url" readonly><button id="copy-flex-link" type="button">COPY</button></div></div>
+
+    <section class="power-select-panel">
+      <div class="power-select-head"><div><small>DBT POWER PACK</small><b>Choose extra Power Cards</b></div><span id="power-host-note">Host controls this pack</span></div>
+      <div id="power-select-grid" class="power-select-grid">
+        <button type="button" data-power-toggle="MAGNET"><span>🧲</span><b>MAGNET</b><small>Pull 1 random card from an opponent.</small></button>
+        <button type="button" data-power-toggle="SHIELD"><span>🛡️</span><b>SHIELD</b><small>Blocks the next Power Card used against you.</small></button>
+        <button type="button" data-power-toggle="TIME_FREEZE"><span>⏱️</span><b>TIME FREEZE</b><small>Next player gets only 3 seconds.</small></button>
+        <button type="button" data-power-toggle="ROBBERY"><span>🥷</span><b>ROBBERY</b><small>Target chooses 1 Power Card to give you.</small></button>
+      </div>
+      <div id="selected-power-summary" class="selected-power-summary">Selected: loading…</div>
+    </section>
+
     <div id="lobby-players" class="players"></div>
     <button id="ready" class="primary wide">READY ⚡</button>
   </section>
@@ -55,7 +68,13 @@
       <div id="discard" class="discard"></div>
     </div>
     <div id="action-log" class="action-log"></div>
-    <div class="my-strip"><div><b id="me-name"></b><span id="power-pill" class="power on">POWER ON ✓</span><button id="power-help" class="power-help" type="button" aria-label="What does the Power Card do?">?</button></div><div><button id="uno" class="uno-btn">UNO!</button><button id="catch" class="ghost">Catch UNO +2</button></div></div>
+
+    <section class="power-hand-wrap">
+      <div class="power-hand-head"><div><small>DBT POWER CARDS</small><b>Tap a card to learn or use it</b></div><span id="power-timer" hidden></span></div>
+      <div id="power-hand" class="power-hand"></div>
+    </section>
+
+    <div class="my-strip"><div><b id="me-name"></b><span id="power-pill" class="power on">POWER ON ✓</span><button id="power-help" class="power-help" type="button" aria-label="What does the Flex Power Card do?">?</button></div><div><button id="uno" class="uno-btn">UNO!</button><button id="catch" class="ghost">Catch UNO +2</button><button id="flex-pass" class="pass-btn" type="button">PASS ⏭</button></div></div>
     <div id="hand" class="hand"></div>
   </section>
 </main>
@@ -68,11 +87,27 @@
   <button id="cancel-play" class="ghost wide">Cancel</button>
 </dialog>
 <dialog id="power-dialog" class="power-dialog">
-  <div class="mode-kicker">UNO FLEX · POWER CARD</div>
+  <div class="mode-kicker">UNO FLEX · FLEX POWER</div>
   <h2>⚡ ON means Flex is available</h2>
-  <p><b>POWER ON ✓</b> lets you use the secondary Flex side of eligible cards. After you use a Flex side, your Power turns <b>OFF ✕</b>.</p>
-  <p>Flip-symbol number cards toggle your own Power. Wild All Flip toggles everyone. If every player is OFF at the same time, everyone resets to ON.</p>
+  <p><b>POWER ON ✓</b> lets you use the secondary Flex side of eligible cards. After you use a Flex side, your Flex Power turns <b>OFF ✕</b>.</p>
+  <p>Flip-symbol number cards toggle your Flex Power. Wild All Flip toggles everyone. If every player is OFF at the same time, everyone resets to ON.</p>
   <button id="close-power-help" class="primary wide">GOT IT</button>
+</dialog>
+<dialog id="dbt-power-dialog" class="dbt-power-dialog">
+  <div class="mode-kicker">DBT POWER CARD</div>
+  <div id="dbt-power-icon" class="dbt-power-icon">⚡</div>
+  <h2 id="dbt-power-title">Power Card</h2>
+  <p id="dbt-power-desc"></p>
+  <div id="dbt-power-target-wrap" hidden><label>Choose opponent<select id="dbt-power-target"></select></label></div>
+  <button id="dbt-power-use" class="primary wide" type="button">USE POWER</button>
+  <button id="dbt-power-close" class="ghost wide" type="button">CLOSE</button>
+</dialog>
+<dialog id="robbery-dialog" class="dbt-power-dialog">
+  <div class="mode-kicker">ROBBERY · YOUR CHOICE</div>
+  <div class="dbt-power-icon">🥷</div>
+  <h2>Choose what they steal</h2>
+  <p>An opponent used ROBBERY on you. Pick one of your available Power Cards to hand over.</p>
+  <div id="robbery-choices" class="robbery-choices"></div>
 </dialog>
 </body>
 </html>
