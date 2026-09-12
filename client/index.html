@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+  <meta name="theme-color" content="#10131d" />
+  <title>UNO আড্ডা · Made by DBT</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="stylesheet" href="/style.css" />
+  <script defer src="/socket.io/socket.io.js"></script>
+  <script defer src="/app.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/">UNO <b>আড্ডা</b><small>Made by DBT</small></a>
+  <div class="top-actions">
+    <button id="sound-toggle" class="icon-btn" title="সাউন্ড">🔊</button>
+    <button id="theme-toggle" class="icon-btn" title="ডার্ক/লাইট">🌙</button>
+    <div id="network" class="network" role="status">সংযোগ হচ্ছে…</div>
+  </div>
+</header>
+
+<main>
+  <section id="menu" class="panel hero-panel">
+    <div class="live-pill">🔴 LIVE PARTY TABLE</div>
+    <h1>কার্ড খেলো, ট্রল দাও,<br><span>স্টেডিয়াম গরম করো 😂</span></h1>
+    <p>২–৪ জন · বাংলা লাইভ কমেন্ট্রি · ফাস্ট ট্রল · রুম-ওয়াইড সাউন্ড</p>
+
+    <div class="avatar-block">
+      <label>তোমার অবতার</label>
+      <div id="avatars" class="avatar-picker">
+        <button type="button" class="avatar active">😎</button><button type="button" class="avatar">🤖</button><button type="button" class="avatar">👻</button><button type="button" class="avatar">😈</button><button type="button" class="avatar">🐸</button><button type="button" class="avatar">🐼</button><button type="button" class="avatar">🥷</button><button type="button" class="avatar">👽</button>
+      </div>
+    </div>
+
+    <form id="create" class="stack">
+      <label for="name">তোমার নাম</label>
+      <input id="name" maxlength="24" autocomplete="nickname" placeholder="যেমন: DBT Boss 😎" required />
+      <button class="primary big" type="submit">নতুন রুম খোলো 🔥</button>
+      <button id="bot-play" class="bot-play" type="button">🤖 বট মামার সাথে এখনই খেলি</button>
+    </form>
+
+    <div class="divider"><span>অথবা বন্ধুর রুমে ঢুকো</span></div>
+    <form id="join" class="join-row">
+      <input id="code" maxlength="4" pattern="[A-Za-z2-9]{4}" placeholder="K7X9" autocomplete="off" required />
+      <button type="submit">ঢুকে পড়ো 😈</button>
+    </form>
+    <small class="muted">ফ্রি-টাইপ চ্যাট নেই—খেলায় ফোকাস, ট্রল আর সাউন্ডে মজা 😎</small>
+  </section>
+
+  <section id="lobby" class="panel" hidden>
+    <div class="live-pill">🟢 রুম লাইভ</div>
+    <h1>দল জড়ো হচ্ছে… 👀</h1>
+    <p>এই কোডটা বন্ধুদের পাঠাও। ২–৪ জন হলেই সবাই Ready দিলে খেলা শুরু।</p>
+    <button id="copy" class="room-code"></button>
+    <button id="share" class="secondary">শেয়ার করো 📤</button>
+    <div id="lobby-players" class="lobby-players"></div>
+    <button id="ready" class="primary big">আমি রেডি 😎</button>
+    <button class="quiet leave">রুম ছাড়ি 🏃</button>
+  </section>
+
+  <section id="board" hidden>
+    <div class="table-heading">
+      <div><span id="room-label"></span><span id="round-label"></span></div>
+      <div class="table-tools"><button id="history-btn" class="quiet">📊 স্কোর</button><button class="quiet leave">🚪 বের হই</button></div>
+    </div>
+
+    <div id="commentary" class="commentary">
+      <span id="commentator-name" class="commentator">🎙️ LIVE</span>
+      <b id="commentary-text">কমেন্টেটর মাইক টেস্ট করছে…</b>
+    </div>
+
+    <section class="arena" aria-label="UNO খেলার টেবিল">
+      <div id="disconnect" class="notice" hidden></div>
+      <div id="troll-banner" class="troll-banner" hidden></div>
+      <div id="devil-flash" class="devil-flash" hidden>😈 DEVIL! এক সেকেন্ডের জন্য গোপন কার্ড দেখা যাচ্ছে!</div>
+
+      <div id="opponent-hands" class="opponent-hands"></div>
+
+      <div class="center-table">
+        <div id="turn" class="turn"></div>
+        <div class="piles">
+          <div class="pile-wrap draw-wrap">
+            <button id="draw" class="uno-card card-back" aria-label="কার্ড তোলো"><span class="uno-logo">DBT</span></button>
+            <div id="draw-count" class="pile-label"></div>
+          </div>
+          <div class="pile-wrap"><div id="discard"></div><div class="pile-label">ফেলা কার্ড</div></div>
+        </div>
+        <div class="status-row"><div id="active-color" class="color-badge"></div><div id="direction" class="direction"></div><div id="clock" class="clock"></div></div>
+      </div>
+
+      <div class="me-strip">
+        <div class="me-label"><strong id="my-avatar"></strong> <strong id="my-name"></strong><span id="hand-count"></span></div>
+        <div class="actions"><button id="uno" class="uno-btn">UNO! 🚨</button><button id="catch" class="catch" hidden>ধরছি UNO! 😂</button><button id="pass" hidden>রাখি, পাশ 😅</button></div>
+      </div>
+      <div id="hand" class="hand"></div>
+      <p id="hint" class="hint"></p>
+    </section>
+
+    <section class="party-dock" aria-label="ফাস্ট ট্রল এবং সাউন্ড">
+      <div class="party-box troll-box">
+        <div class="party-title"><b>⚡ ফাস্ট ট্রল</b><small>চাপলেই সবার বোর্ডে বড় করে দেখাবে</small></div>
+        <div id="quick-list" class="quick-list"></div>
+      </div>
+      <div class="party-box sound-box">
+        <div class="party-title"><b>🔊 সাউন্ড</b><small>চাপলেই রুমের সবাই শুনবে</small></div>
+        <div id="sound-list" class="sound-list"></div>
+      </div>
+    </section>
+  </section>
+
+  <div id="toast" role="alert" hidden></div>
+  <div id="reaction-pop" class="reaction-pop" hidden></div>
+</main>
+
+<dialog id="colors" class="modal-card">
+  <h2>কোন রঙে খেলবে বস? 🎨</h2><p>একটা রঙ বেছে নাও।</p>
+  <div class="color-grid"><button class="RED" data-color="RED">🔴 লাল</button><button class="YELLOW" data-color="YELLOW">🟡 হলুদ</button><button class="GREEN" data-color="GREEN">🟢 সবুজ</button><button class="BLUE" data-color="BLUE">🔵 নীল</button></div>
+  <button id="cancel-color" class="quiet">বাদ দাও</button>
+</dialog>
+
+<dialog id="results" class="modal-card results-card">
+  <div class="trophy">🏆</div><h2 id="winner"></h2><p id="result-reason"></p><div id="scores"></div>
+  <button id="rematch" class="primary big">রিভেঞ্জ চাই 😈</button><button class="quiet leave">আজকে থাক 😅</button>
+</dialog>
+
+<dialog id="history-dialog" class="modal-card"><h2>📊 ম্যাচের হিসাব</h2><div id="history-list"></div><button class="quiet" onclick="this.closest('dialog').close()">বন্ধ</button></dialog>
+<footer>UNO আড্ডা <span>Made with 😂 by DBT</span></footer>
+</body>
+</html>
