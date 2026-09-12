@@ -45,7 +45,7 @@ export function registerClassicPowers(io: Server, rooms: Map<string, GameRoom>) 
 
   const ensureStartedPowers = (room: GameRoom) => {
     const meta = metaFor(room);
-    if (room.state.status === "PLAYING" && meta.lastStatus !== "PLAYING") {
+    if (room.state.status === "PLAYING" && (meta.lastStatus !== "PLAYING" || meta.powers.size === 0)) {
       meta.powers.clear();
       meta.shielded.clear();
       meta.pendingRobbery = null;
@@ -105,7 +105,7 @@ export function registerClassicPowers(io: Server, rooms: Map<string, GameRoom>) 
     if (!meta.shielded.has(target)) return false;
     meta.shielded.delete(target);
     const targetPlayer = room.player(target);
-    io.to(targetPlayer.socketId).emit("s_power_notice", { message: `🛡️ SHIELD ${label} block করেছে!` });
+    if (!targetPlayer.isBot) io.to(targetPlayer.socketId).emit("s_power_notice", { message: `🛡️ SHIELD ${label} block করেছে!` });
     return true;
   };
 
