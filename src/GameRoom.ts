@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { createDeck, shuffle, points, COLORS, DECK_SIZE } from "./Deck.js";
+import { createDeck, shuffle, points, COLORS } from "./Deck.js";
 import type { UnoRoomState, PlayerSession, UnoCard, PlayColor, ClientSyncPayload, MatchHistoryItem, GameEvent } from "./types.js";
 
 export class GameRoom {
@@ -18,9 +18,10 @@ export class GameRoom {
   resultReason: string | null = null;
   history: MatchHistoryItem[] = [];
   lastEvent: GameEvent | null = null;
+  includeWild = true;
+  includeDrawFour = true;
+  includeDevil = true;
 
-  // A card id must map to exactly one color/value for the entire lifetime of a room.
-  // This catches any accidental card mutation immediately instead of letting the UI drift.
   private cardIdentity = new Map<string, string>();
   private roundCardIds = new Set<string>();
 
@@ -38,6 +39,14 @@ export class GameRoom {
   get paused() { return this.state.status === "PLAYING" && this.tokens.some((t) => !this.state.players[t].isBot && !this.state.players[t].connected); }
   touch() { this.revision++; this.updatedAt = this.now(); }
 
+  configureSpecialCards(options: { wild: boolean; drawFour: boolean; devil: boolean }) {
+    if (this.state.status !== "LOBBY") throw Error("গেম শুরু হওয়ার পর special cards বদলানো যাবে না।");
+    this.includeWild = options.wild;
+    this.includeDrawFour = options.drawFour;
+    this.includeDevil = options.devil;
+    this.touch();
+  }
+
   private event(type: string, actor: string, target?: string, value?: string) {
     this.lastEvent = { id: randomUUID(), type, actor: this.player(actor).displayName, target: target ? this.player(target).displayName : undefined, value, at: this.now() };
   }
@@ -51,35 +60,26 @@ export class GameRoom {
   }
 
   private allZoneCards() {
-    return [
-      ...this.state.drawPile,
-      ...this.state.discardPile,
-      ...this.tokens.flatMap((t) => this.player(t).hand),
-    ];
+    return [...this.state.drawPile, ...this.state.discardPile, ...this.tokens.flatMap((t) => this.player(t).hand)];
   }
 
   assertIntegrity(context = "state") {
     const seen = new Set<string>();
-    let allKnownRoundCards = this.roundCardIds.size === DECK_SIZE;
+    const expected = this.roundCardIds.size;
+    let allKnownRoundCards = expected > 0;
     for (const c of this.allZoneCards()) {
       this.rememberCard(c);
       if (seen.has(c.id)) throw Error(`CARD_INTEGRITY: duplicate card ${c.id} during ${context}`);
       seen.add(c.id);
-      if (this.roundCardIds.size === DECK_SIZE && !this.roundCardIds.has(c.id)) allKnownRoundCards = false;
+      if (expected && !this.roundCardIds.has(c.id)) allKnownRoundCards = false;
     }
     if (this.state.drawnCardPlayable) {
       this.rememberCard(this.state.drawnCardPlayable);
       const owner = this.current ? this.player(this.current) : null;
-      if (!owner?.hand.some((c) => c.id === this.state.drawnCardPlayable!.id)) {
-        throw Error(`CARD_INTEGRITY: pending drawn card is not in current hand during ${context}`);
-      }
+      if (!owner?.hand.some((c) => c.id === this.state.drawnCardPlayable!.id)) throw Error(`CARD_INTEGRITY: pending drawn card is not in current hand during ${context}`);
     }
-    if (allKnownRoundCards && seen.size !== DECK_SIZE) {
-      throw Error(`CARD_INTEGRITY: expected ${DECK_SIZE} cards, found ${seen.size} during ${context}`);
-    }
-    if (this.tokens.length && (this.state.currentTurnIndex < 0 || this.state.currentTurnIndex >= this.tokens.length)) {
-      throw Error(`CARD_INTEGRITY: invalid current turn index during ${context}`);
-    }
+    if (allKnownRoundCards && seen.size !== expected) throw Error(`CARD_INTEGRITY: expected ${expected} cards, found ${seen.size} during ${context}`);
+    if (this.tokens.length && (this.state.currentTurnIndex < 0 || this.state.currentTurnIndex >= this.tokens.length)) throw Error(`CARD_INTEGRITY: invalid current turn index during ${context}`);
     return true;
   }
 
@@ -118,14 +118,20 @@ export class GameRoom {
     if (this.tokens.length >= 2 && !this.paused && this.tokens.every((t) => this.player(t).isReady)) this.start();
   }
 
-  start(deck = shuffle(createDeck())) {
+  start(deck?: UnoCard[]) {
     const s = this.state;
     if (this.tokens.length < 2) throw Error("কমপক্ষে ২ জন খেলোয়াড় লাগবে।");
-    if (deck.length !== DECK_SIZE || new Set(deck.map((c) => c.id)).size !== DECK_SIZE) throw Error(`ডেক ঠিক নেই—${DECK_SIZE}টা ইউনিক কার্ড লাগবে।`);
-    this.roundCardIds = new Set(deck.map((c) => c.id));
-    for (const c of deck) this.rememberCard(c);
+    const chosen = deck ?? shuffle(createDeck().filter((c) => {
+      if (c.value === "WILD" && !this.includeWild) return false;
+      if (c.value === "WILD_DRAW_FOUR" && !this.includeDrawFour) return false;
+      if (c.value === "DEVIL" && !this.includeDevil) return false;
+      return true;
+    }));
+    if (chosen.length < this.tokens.length * 7 + 1 || new Set(chosen.map((c) => c.id)).size !== chosen.length) throw Error("ডেক ঠিক নেই—পর্যাপ্ত ইউনিক কার্ড লাগবে।");
+    this.roundCardIds = new Set(chosen.map((c) => c.id));
+    for (const c of chosen) this.rememberCard(c);
 
-    s.drawPile = [...deck]; s.discardPile = []; s.drawnCardPlayable = null; s.winnerToken = null;
+    s.drawPile = [...chosen]; s.discardPile = []; s.drawnCardPlayable = null; s.winnerToken = null;
     s.status = "PLAYING"; s.currentTurnIndex = 0; s.direction = 1;
     this.clearUno(); this.rematch.clear(); this.resultReason = null; this.round++;
     for (const t of this.tokens) { const p = this.player(t); p.hand = []; p.isUnoSafe = false; p.isReady = false; }
@@ -135,9 +141,7 @@ export class GameRoom {
     s.discardPile.push(first); s.activeColor = first.color; this.needsStartingColor = first.value === "WILD";
     if (first.value === "DRAW_TWO") { this.take(this.current, 2); this.advance(1, false); }
     else if (first.value === "SKIP") this.advance(1, false);
-    else if (first.value === "REVERSE") {
-      if (this.tokens.length === 2) this.advance(1, false); else s.direction = -1;
-    }
+    else if (first.value === "REVERSE") { if (this.tokens.length === 2) this.advance(1, false); else s.direction = -1; }
     this.resetTimer();
     this.assertIntegrity("round start");
     this.touch();
@@ -163,14 +167,9 @@ export class GameRoom {
   take(t: string, n: number) {
     const s = this.state; const got: UnoCard[] = [];
     for (let i = 0; i < n; i++) {
-      if (!s.drawPile.length && s.discardPile.length > 1) {
-        const top = s.discardPile.pop()!;
-        s.drawPile = shuffle([...s.discardPile]);
-        s.discardPile = [top];
-      }
+      if (!s.drawPile.length && s.discardPile.length > 1) { const top = s.discardPile.pop()!; s.drawPile = shuffle([...s.discardPile]); s.discardPile = [top]; }
       const c = s.drawPile.pop(); if (!c) break;
-      this.rememberCard(c);
-      this.player(t).hand.push(c); got.push(c);
+      this.rememberCard(c); this.player(t).hand.push(c); got.push(c);
     }
     if (this.player(t).hand.length !== 1) { this.player(t).isUnoSafe = false; if (this.vulnerabilities.has(t)) this.clearUno(t); }
     return got;
@@ -188,8 +187,7 @@ export class GameRoom {
   }
 
   play(t: string, id: string, color: PlayColor | undefined, calledUno: boolean, fromDraw = false) {
-    this.assertIntegrity("before play");
-    this.assertTurn(t);
+    this.assertIntegrity("before play"); this.assertTurn(t);
     const before = this.counts();
     const s = this.state, p = this.player(t), c = p.hand.find((x) => x.id === id);
     if (!c || !this.legal(t, c)) throw Error("এই কার্ডটা এখন চলবে না 😅");
@@ -198,19 +196,14 @@ export class GameRoom {
     if (c.color === "WILD" && (!color || !COLORS.includes(color))) throw Error("একটা রঙ বেছে নাও।");
     if (p.hand.length === 1 && this.now() < (this.vulnerabilities.get(t) ?? 0)) throw Error("UNO ধরার সময়টা শেষ হোক আগে!");
 
-    p.hand = p.hand.filter((x) => x.id !== id);
-    s.discardPile.push(c);
-    s.activeColor = c.color === "WILD" ? color! : c.color;
-    s.drawnCardPlayable = null;
+    p.hand = p.hand.filter((x) => x.id !== id); s.discardPile.push(c); s.activeColor = c.color === "WILD" ? color! : c.color; s.drawnCardPlayable = null;
     if (p.hand.length === 1) {
       p.isUnoSafe = calledUno;
       if (!calledUno) { s.vulnerablePlayerToken = t; s.vulnerabilityExpiry = this.now() + 2000; this.vulnerabilities.set(t, s.vulnerabilityExpiry); }
       this.event("uno", t, undefined, calledUno ? "called" : "missed");
     }
 
-    const nextBefore = this.nextToken();
-    let penalty = 0;
-    let target: string | undefined;
+    const nextBefore = this.nextToken(); let penalty = 0; let target: string | undefined;
     if (c.value === "DRAW_TWO") { target = nextBefore; penalty = this.take(nextBefore, 2).length; this.event("draw2", t, nextBefore); }
     else if (c.value === "WILD_DRAW_FOUR") { target = nextBefore; penalty = this.take(nextBefore, 4).length; this.event("draw4", t, nextBefore); }
     else if (c.value === "SKIP") this.event("skip", t, nextBefore);
@@ -221,14 +214,10 @@ export class GameRoom {
 
     this.assertPlayCountDelta(before, t, target, penalty, `play ${c.value}`);
     if (!p.hand.length) { this.assertIntegrity("winning play"); this.finish(t, "emptied-hand"); return; }
-
-    if (c.value === "REVERSE") {
-      if (this.tokens.length === 2) this.resetTimer();
-      else { s.direction = s.direction === 1 ? -1 : 1; this.advance(1); }
-    } else if (["SKIP", "DRAW_TWO", "WILD_DRAW_FOUR"].includes(c.value)) this.advance(2);
+    if (c.value === "REVERSE") { if (this.tokens.length === 2) this.resetTimer(); else { s.direction = s.direction === 1 ? -1 : 1; this.advance(1); } }
+    else if (["SKIP", "DRAW_TWO", "WILD_DRAW_FOUR"].includes(c.value)) this.advance(2);
     else this.advance(1);
-    this.assertIntegrity("after play");
-    this.touch();
+    this.assertIntegrity("after play"); this.touch();
   }
 
   private nextToken() { const n = this.tokens.length; return this.tokens[(this.state.currentTurnIndex + this.state.direction + n) % n]; }
@@ -236,15 +225,22 @@ export class GameRoom {
   draw(t: string) {
     this.assertIntegrity("before draw");
     this.assertTurn(t); if (this.needsStartingColor || this.state.drawnCardPlayable) throw Error("আগের কাজটা আগে শেষ করো।");
-    const before = this.player(t).hand.length;
-    const c = this.take(t, 1)[0];
+    const before = this.player(t).hand.length; const c = this.take(t, 1)[0];
     if (this.player(t).hand.length !== before + (c ? 1 : 0)) throw Error("CARD_COUNT_INTEGRITY: draw count mismatch");
     this.event("draw", t);
     if (c && this.legal(t, c)) this.state.drawnCardPlayable = c; else this.advance(1);
-    this.assertIntegrity("after draw");
+    this.assertIntegrity("after draw"); this.touch();
+  }
+
+  pass(t: string) {
+    this.assertIntegrity("before pass");
+    this.assertTurn(t);
+    if (this.needsStartingColor) throw Error("আগে রঙ বেছে নাও।");
+    this.event("pass", t);
+    this.advance(1);
+    this.assertIntegrity("after pass");
     this.touch();
   }
-  pass(t: string) { this.assertIntegrity("before pass"); this.assertTurn(t); if (!this.state.drawnCardPlayable) throw Error("আগে একটা কার্ড তোলো।"); this.event("pass", t); this.advance(1); this.assertIntegrity("after pass"); this.touch(); }
 
   catchUno(t: string) {
     this.assertIntegrity("before UNO catch");
@@ -252,8 +248,7 @@ export class GameRoom {
     this.player(t);
     const victim = [...this.vulnerabilities.entries()].find(([x, expiry]) => x !== t && this.now() < expiry)?.[0];
     if (!victim) throw Error("এখন কাউকে UNO ধরে ফেলতে পারবে না।");
-    const before = this.player(victim).hand.length;
-    const got = this.take(victim, 2).length;
+    const before = this.player(victim).hand.length; const got = this.take(victim, 2).length;
     if (this.player(victim).hand.length !== before + got) throw Error("CARD_COUNT_INTEGRITY: UNO penalty count mismatch");
     this.clearUno(victim); this.event("catch", t, victim); this.assertIntegrity("after UNO catch"); this.touch();
   }
@@ -272,9 +267,7 @@ export class GameRoom {
 
   requestRematch(t: string) {
     if (this.state.status !== "ROUND_OVER") throw Error("রাউন্ড শেষ হোক আগে।");
-    this.player(t); this.rematch.add(t);
-    for (const x of this.tokens) if (this.player(x).isBot) this.rematch.add(x);
-    this.touch();
+    this.player(t); this.rematch.add(t); for (const x of this.tokens) if (this.player(x).isBot) this.rematch.add(x); this.touch();
     if (this.rematch.size === this.tokens.length && !this.paused) this.start();
   }
 
@@ -287,14 +280,10 @@ export class GameRoom {
   private botTaunt(t: string) {
     const ev = this.lastEvent;
     const lines: Record<string, string[]> = {
-      draw: ["কার্ড তুললাম, কিন্তু প্ল্যান আরও ভয়ংকর 😏", "ডেকের সাথে একটু কথা বলে আসি 😂"],
-      draw2: ["+2 নাও বস, গিফট ফ্রি! 😂", "দুইটা কার্ড—মন খারাপ কইরো না 😈"],
-      draw4: ["+4! বন্ধুত্ব পরে দেখা যাবে 💀🔥", "চারটা নাও ভাই, আজকে ছাড় নাই 😎"],
-      skip: ["তোমার চাল? আজকে না 😂", "বসে থাকো বস, আমি খেলি 😈"],
-      reverse: ["রাস্তা ঘুরাই দিলাম 🔄", "খেলা উল্টে দিলাম, এখন সামলাও 😎"],
-      uno: ["UNO! বট মামা কিন্তু সিরিয়াস 🤖🔥", "একটাই বাকি—ধরতে পারলে ধরো 👀"],
-      play: ["এই চালটা মনে রাখবা 😏", "চুপচাপ কার্ড নামালাম, ভয় পাও 😂"],
-      wild: ["রঙও আমার, নিয়মও আমার 😎", "কালার বদল! মাথা ঠান্ডা রাখো 😂"],
+      draw: ["কার্ড তুললাম, কিন্তু প্ল্যান আরও ভয়ংকর 😏", "ডেকের সাথে একটু কথা বলে আসি 😂"], draw2: ["+2 নাও বস, গিফট ফ্রি! 😂", "দুইটা কার্ড—মন খারাপ কইরো না 😈"],
+      draw4: ["+4! বন্ধুত্ব পরে দেখা যাবে 💀🔥", "চারটা নাও ভাই, আজকে ছাড় নাই 😎"], skip: ["তোমার চাল? আজকে না 😂", "বসে থাকো বস, আমি খেলি 😈"],
+      reverse: ["রাস্তা ঘুরাই দিলাম 🔄", "খেলা উল্টে দিলাম, এখন সামলাও 😎"], uno: ["UNO! বট মামা কিন্তু সিরিয়াস 🤖🔥", "একটাই বাকি—ধরতে পারলে ধরো 👀"],
+      play: ["এই চালটা মনে রাখবা 😏", "চুপচাপ কার্ড নামালাম, ভয় পাও 😂"], wild: ["রঙও আমার, নিয়মও আমার 😎", "কালার বদল! মাথা ঠান্ডা রাখো 😂"],
       devil: ["😈 ডেভিল কার্ড! চোখ খোলা রাখো!", "ডেভিল নামল—গোপন কার্ডে এক সেকেন্ডের ঝড় 😈"]
     };
     const choices = ev ? lines[ev.type] : undefined;
@@ -305,23 +294,15 @@ export class GameRoom {
 
   playBotTurn() {
     if (this.state.status !== "PLAYING" || this.paused) return false;
-    const t = this.current;
-    const p = this.player(t);
-    if (!p.isBot) return false;
-
+    const t = this.current; const p = this.player(t); if (!p.isBot) return false;
     const catchable = [...this.vulnerabilities.entries()].find(([x, expiry]) => x !== t && this.now() < expiry);
     if (catchable) { this.catchUno(t); this.event("taunt", t, undefined, "UNO ভুল! ধরে ফেললাম 😂🤖"); return true; }
     if (this.needsStartingColor) { this.chooseStart(t, this.botColor(t)); this.event("taunt", t, undefined, "কালার আমি বাছি—বটেরও পছন্দ আছে 😎"); return true; }
-    if (this.state.drawnCardPlayable) {
-      const c = this.state.drawnCardPlayable;
-      const chosen = c.color === "WILD" ? this.botColor(t) : undefined;
-      this.play(t, c.id, chosen, p.hand.length === 2, true); this.botTaunt(t); return true;
-    }
+    if (this.state.drawnCardPlayable) { const c = this.state.drawnCardPlayable; const chosen = c.color === "WILD" ? this.botColor(t) : undefined; this.play(t, c.id, chosen, p.hand.length === 2, true); this.botTaunt(t); return true; }
     const legal = p.hand.filter((c) => this.legal(t, c));
     if (legal.length) {
       const score = (c: UnoCard) => c.value === "WILD_DRAW_FOUR" ? 7 : c.value === "DEVIL" ? 6.5 : c.value === "DRAW_TWO" ? 6 : c.value === "SKIP" ? 5 : c.value === "REVERSE" ? 4 : c.value === "WILD" ? 3 : Number.isFinite(Number(c.value)) ? Number(c.value) / 10 : 1;
-      const c = [...legal].sort((a,b) => score(b) - score(a))[0];
-      const chosen = c.color === "WILD" ? this.botColor(t) : undefined;
+      const c = [...legal].sort((a,b) => score(b) - score(a))[0]; const chosen = c.color === "WILD" ? this.botColor(t) : undefined;
       this.play(t, c.id, chosen, p.hand.length === 2); this.botTaunt(t); return true;
     }
     this.draw(t); this.botTaunt(t); return true;
@@ -329,34 +310,20 @@ export class GameRoom {
 
   tick() {
     const s = this.state, now = this.now();
-    for (const [t, deadline] of this.disconnected) if (now >= deadline && s.status === "PLAYING") {
-      const connected = this.tokens.filter((x) => x !== t && this.player(x).connected);
-      if (connected.length >= 1) this.finish(connected[0], "forfeit");
-    }
+    for (const [t, deadline] of this.disconnected) if (now >= deadline && s.status === "PLAYING") { const connected = this.tokens.filter((x) => x !== t && this.player(x).connected); if (connected.length >= 1) this.finish(connected[0], "forfeit"); }
     for (const [t, expiry] of this.vulnerabilities) if (now >= expiry) { this.clearUno(t); this.touch(); }
     if (s.status === "PLAYING" && !this.paused && this.turnDeadline !== null && now >= this.turnDeadline) {
       this.assertIntegrity("before timeout");
       if (this.needsStartingColor) { this.needsStartingColor = false; s.activeColor = "RED"; }
       const timed = this.current;
-      if (!s.drawnCardPlayable) {
-        const before = this.player(timed).hand.length;
-        const got = this.take(timed, 1).length;
-        if (this.player(timed).hand.length !== before + got) throw Error("CARD_COUNT_INTEGRITY: timeout draw mismatch");
-      }
+      if (!s.drawnCardPlayable) { const before = this.player(timed).hand.length; const got = this.take(timed, 1).length; if (this.player(timed).hand.length !== before + got) throw Error("CARD_COUNT_INTEGRITY: timeout draw mismatch"); }
       this.event("timeout", timed); this.advance(1); this.assertIntegrity("after timeout"); this.touch();
     }
   }
 
   devilReveal(t: string) {
     this.player(t);
-    return this.tokens
-      .filter((x) => x !== t)
-      .map((x) => ({
-        seat: this.tokens.indexOf(x),
-        displayName: this.player(x).displayName,
-        avatar: this.player(x).avatar,
-        cards: this.player(x).hand.map((c) => ({ color: c.color, value: c.value })),
-      }));
+    return this.tokens.filter((x) => x !== t).map((x) => ({ seat: this.tokens.indexOf(x), displayName: this.player(x).displayName, avatar: this.player(x).avatar, cards: this.player(x).hand.map((c) => ({ color: c.color, value: c.value })) }));
   }
 
   sync(t: string): ClientSyncPayload {
@@ -367,8 +334,7 @@ export class GameRoom {
     const disconnectedDeadlines = this.tokens.filter((x) => x !== t && !this.player(x).isBot).map((x) => this.disconnected.get(x)).filter((x): x is number => !!x);
     return {
       roomCode: s.roomCode, status: s.status, isMyTurn: mine,
-      myHand: p.hand.map((c) => ({ id: c.id, color: c.color, value: c.value })),
-      myName: p.displayName, myAvatar: p.avatar,
+      myHand: p.hand.map((c) => ({ id: c.id, color: c.color, value: c.value })), myName: p.displayName, myAvatar: p.avatar,
       topDiscardCard: s.discardPile.at(-1) ? { ...s.discardPile.at(-1)! } : null,
       activeColor: s.activeColor, direction: s.direction, drawPileCount: s.drawPile.length,
       canCallUno: mine && p.hand.length === 2, canCatchOpponent: active && catchable,
@@ -377,11 +343,9 @@ export class GameRoom {
       playableCardIds: mine && !locked ? p.hand.filter((c) => this.legal(t,c) && (!s.drawnCardPlayable || c.id === s.drawnCardPlayable.id)).map((c) => c.id) : [],
       needsStartingColor: mine && this.needsStartingColor, paused: this.paused, turnDeadline: this.turnDeadline,
       reconnectDeadline: disconnectedDeadlines.length ? Math.min(...disconnectedDeadlines) : null,
-      unoDeadline: [...this.vulnerabilities.entries()].find(([x]) => x !== t)?.[1] ?? null,
-      serverNow: this.now(),
+      unoDeadline: [...this.vulnerabilities.entries()].find(([x]) => x !== t)?.[1] ?? null, serverNow: this.now(),
       players: this.tokens.map((x) => ({ displayName: this.player(x).displayName, avatar: this.player(x).avatar, connected: this.player(x).connected, isReady: this.player(x).isReady, isMe: x === t, isCurrent: x === this.current, cardCount: this.player(x).hand.length, score: this.scores[x], wins: this.wins[x], rematchRequested: this.rematch.has(x), isBot: !!this.player(x).isBot, seat: this.tokens.indexOf(x) })),
-      history: this.history.map((h) => ({ ...h })), revision: this.revision, round: this.round, resultReason: this.resultReason,
-      lastEvent: this.lastEvent ? { ...this.lastEvent } : null,
+      history: this.history.map((h) => ({ ...h })), revision: this.revision, round: this.round, resultReason: this.resultReason, lastEvent: this.lastEvent ? { ...this.lastEvent } : null,
     };
   }
 }
