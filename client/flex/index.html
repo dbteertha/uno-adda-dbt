@@ -9,8 +9,8 @@
   <script defer src="/socket.io/socket.io.js"></script>
   <script defer src="/flex/flex.js"></script>
 </head>
-<body>
-<header class="flex-top"><a href="/">← DBT GAMES</a><div><b>UNO FLEX</b><small>Dare · Battle · Triumph</small></div><button id="tutorial-again">Tutorial</button></header>
+<body class="flex-theme">
+<header class="flex-top"><a href="/">← UNO ADDA</a><div><b>UNO FLEX</b><small>Dare · Battle · Triumph</small></div><button id="tutorial-again">Tutorial</button></header>
 <main>
   <section id="tutorial" class="screen tutorial-screen">
     <div class="tutorial-head"><span>UNO FLEX · FLASHCARD TUTORIAL</span><strong id="tutorial-progress">1 / 10</strong></div>
@@ -36,9 +36,11 @@
     <div id="join-wrap"><div class="or">OR JOIN</div><div class="join-row"><input id="room-code" maxlength="4" placeholder="ABCD" /><button id="join-flex">Join</button></div></div>
   </section>
 
-  <section id="lobby" class="screen panel" hidden>
-    <span class="chip">FLEX LOBBY</span><h2>Room <button id="room-code-show" class="code"></button></h2>
+  <section id="lobby" class="screen panel flex-lobby" hidden>
+    <span class="chip">FLEX WAITING ROOM</span><h2>Room <button id="room-code-show" class="code"></button></h2>
     <p>Everyone starts with Power ON. Ready up when your squad is here.</p>
+    <div class="lobby-tools"><button id="lobby-tutorial" class="ghost" type="button">📖 Flex Tutorial</button><button id="lobby-power-help" class="ghost" type="button">⚡ Power Card Guide</button></div>
+    <div id="flex-share-box" class="flex-share-box" hidden><b>🔗 INSTANT JOIN LINK</b><small>Share this link. Your friend enters a name and joins this Flex room.</small><div class="flex-share-row"><input id="flex-share-url" readonly><button id="copy-flex-link" type="button">COPY</button></div></div>
     <div id="lobby-players" class="players"></div>
     <button id="ready" class="primary wide">READY ⚡</button>
   </section>
@@ -47,12 +49,12 @@
     <div class="game-bar"><button id="leave" class="ghost">← Home</button><div id="status">UNO FLEX</div><div id="active-color" class="active-color"></div></div>
     <div id="challenge" class="challenge" hidden><b>Wild Draw 4!</b><span>Accept +4 or challenge the player?</span><div><button id="accept4">Accept +4</button><button id="challenge4" class="danger">Challenge</button></div></div>
     <div id="players" class="players game-players"></div>
-    <div class="table">
-      <button id="draw" class="draw-pile"><span>DBT</span><small id="deck-count">DRAW</small></button>
+    <div class="table flex-table">
+      <button id="draw" class="draw-pile"><span>FLEX</span><small id="deck-count">DRAW</small></button>
       <div id="discard" class="discard"></div>
     </div>
     <div id="action-log" class="action-log"></div>
-    <div class="my-strip"><div><b id="me-name"></b><span id="power-pill" class="power on">POWER ON ✓</span></div><div><button id="uno" class="uno-btn">UNO!</button><button id="catch" class="ghost">Catch UNO +2</button></div></div>
+    <div class="my-strip"><div><b id="me-name"></b><span id="power-pill" class="power on">POWER ON ✓</span><button id="power-help" class="power-help" type="button" aria-label="What does the Power Card do?">?</button></div><div><button id="uno" class="uno-btn">UNO!</button><button id="catch" class="ghost">Catch UNO +2</button></div></div>
     <div id="hand" class="hand"></div>
   </section>
 </main>
@@ -63,6 +65,13 @@
   <div id="color-buttons" class="color-buttons" hidden><button data-color="RED">Red</button><button data-color="YELLOW">Yellow</button><button data-color="GREEN">Green</button><button data-color="BLUE">Blue</button></div>
   <select id="target" hidden></select>
   <button id="cancel-play" class="ghost wide">Cancel</button>
+</dialog>
+<dialog id="power-dialog" class="power-dialog">
+  <div class="mode-kicker">UNO FLEX · POWER CARD</div>
+  <h2>⚡ ON means Flex is available</h2>
+  <p><b>POWER ON ✓</b> lets you use the secondary Flex side of eligible cards. After you use a Flex side, your Power turns <b>OFF ✕</b>.</p>
+  <p>Flip-symbol number cards toggle your own Power. Wild All Flip toggles everyone. If every player is OFF at the same time, everyone resets to ON.</p>
+  <button id="close-power-help" class="primary wide">GOT IT</button>
 </dialog>
 </body>
 </html>
