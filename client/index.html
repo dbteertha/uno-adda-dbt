@@ -9,9 +9,12 @@
   <link rel="stylesheet" href="/style.css" />
   <link rel="stylesheet" href="/launcher.css" />
   <link rel="stylesheet" href="/flex-home.css" />
+  <link rel="stylesheet" href="/premium.css" />
   <script defer src="/socket.io/socket.io.js"></script>
+  <script defer src="/classic-socket-hook.js"></script>
   <script defer src="/app.js"></script>
   <script defer src="/launcher.js"></script>
+  <script defer src="/classic-enhancements.js"></script>
 </head>
 <body>
 <header class="topbar">
@@ -30,7 +33,6 @@
         <div class="launcher-tabs"><button class="launcher-tab active">Games</button><button class="launcher-tab">Media</button></div>
         <div class="launcher-brand">MADE BY <b>DBT</b></div>
       </div>
-
       <div class="game-rail" aria-label="Games">
         <button class="game-tile active" data-game="uno" aria-label="UNO Adda"><span class="tile-icon uno-mini">UNO</span><span>UNO Adda</span></button>
         <button class="game-tile soon" data-game="gta7"><span class="tile-icon">VII</span><span>GTA 7</span></button>
@@ -38,16 +40,12 @@
         <button class="game-tile soon" data-game="fc27"><span class="tile-icon">FC27</span><span>FC 27</span></button>
         <button class="game-tile soon" data-game="more"><span class="tile-icon">+</span><span>More</span></button>
       </div>
-
       <section class="featured-game">
         <div class="featured-copy">
           <div class="made-chip">DBT GAMES · FEATURED</div>
           <h1><span>UNO</span> আড্ডা</h1>
           <p>বাংলা মজা, ফাস্ট ট্রল, রুম-ওয়াইড সাউন্ড আর Devil Card 😈 — বন্ধুদের নিয়ে সরাসরি টেবিলে নামো।</p>
-          <div class="featured-actions">
-            <button id="home-play-uno" class="launch-btn">▶ PLAY UNO</button>
-            <span>Classic or Flex · Bot or Multiplayer · Mobile Ready</span>
-          </div>
+          <div class="featured-actions"><button id="home-play-uno" class="launch-btn">▶ PLAY UNO</button><span>Classic or Flex · Bot or Multiplayer · Mobile Ready</span></div>
         </div>
         <div class="featured-art" aria-hidden="true">
           <div class="orb orb-a"></div><div class="orb orb-b"></div><div class="orb orb-c"></div>
@@ -55,7 +53,6 @@
           <div class="dbt-watermark">DBT</div>
         </div>
       </section>
-
       <section class="coming-section">
         <div class="coming-head"><div><small>NEXT FROM DBT</small><h2>Projects to come</h2></div><span>COMING SOON</span></div>
         <div class="coming-grid">
@@ -65,7 +62,6 @@
           <article><div class="coming-art mystery">?</div><h3>More games</h3><p>আরো পাগলাটে প্রজেক্ট আসছে 😂</p></article>
         </div>
       </section>
-
       <div class="launcher-footer">MADE BY DBT · UNO Adda contains Classic and Flex modes. Other named titles are future fan-project concepts and are not affiliated with their publishers.</div>
     </div>
   </section>
@@ -74,26 +70,18 @@
     <div class="live-pill">🔴 LIVE PARTY TABLE</div>
     <h1>কার্ড খেলো, ট্রল দাও,<br><span>স্টেডিয়াম গরম করো 😂</span></h1>
     <p>UNO Adda · Classic অথবা Flex · Bot অথবা Multiplayer</p>
-
     <div class="avatar-block">
       <label>তোমার অবতার</label>
-      <div id="avatars" class="avatar-picker">
-        <button type="button" class="avatar active">😎</button><button type="button" class="avatar">🤖</button><button type="button" class="avatar">👻</button><button type="button" class="avatar">😈</button><button type="button" class="avatar">🐸</button><button type="button" class="avatar">🐼</button><button type="button" class="avatar">🥷</button><button type="button" class="avatar">👽</button>
-      </div>
+      <div id="avatars" class="avatar-picker"><button type="button" class="avatar active">😎</button><button type="button" class="avatar">🤖</button><button type="button" class="avatar">👻</button><button type="button" class="avatar">😈</button><button type="button" class="avatar">🐸</button><button type="button" class="avatar">🐼</button><button type="button" class="avatar">🥷</button><button type="button" class="avatar">👽</button></div>
     </div>
-
     <form id="create" class="stack">
       <label for="name">তোমার নাম</label>
       <input id="name" maxlength="24" autocomplete="nickname" placeholder="যেমন: DBT Boss 😎" required />
       <button class="primary big" type="submit">নতুন রুম খোলো 🔥</button>
       <button id="bot-play" class="bot-play" type="button">🤖 বট মামার সাথে এখনই খেলি</button>
     </form>
-
     <div class="divider"><span>অথবা বন্ধুর রুমে ঢুকো</span></div>
-    <form id="join" class="join-row">
-      <input id="code" maxlength="4" pattern="[A-Za-z2-9]{4}" placeholder="K7X9" autocomplete="off" required />
-      <button type="submit">ঢুকে পড়ো 😈</button>
-    </form>
+    <form id="join" class="join-row"><input id="code" maxlength="4" pattern="[A-Za-z2-9]{4}" placeholder="K7X9" autocomplete="off" required /><button type="submit">ঢুকে পড়ো 😈</button></form>
     <small class="muted">Create, Join বা Bot চাপার পর UNO Classic / UNO Flex বেছে নাও। Flex হলে পুরো flashcard tutorial আগে দেখাবে।</small>
   </section>
 
@@ -109,70 +97,29 @@
   </section>
 
   <section id="board" hidden>
-    <div class="table-heading">
-      <div><span id="room-label"></span><span id="round-label"></span></div>
-      <div class="table-tools"><button id="history-btn" class="quiet">📊 স্কোর</button><button class="quiet leave">🚪 বের হই</button></div>
-    </div>
-
-    <div id="commentary" class="commentary">
-      <span id="commentator-name" class="commentator">🎙️ LIVE</span>
-      <b id="commentary-text">কমেন্টেটর মাইক টেস্ট করছে…</b>
-    </div>
-
+    <div class="table-heading"><div><span id="room-label"></span><span id="round-label"></span></div><div class="table-tools"><button id="history-btn" class="quiet">📊 স্কোর</button><button class="quiet leave">🚪 বের হই</button></div></div>
+    <div id="commentary" class="commentary"><span id="commentator-name" class="commentator">🎙️ LIVE</span><b id="commentary-text">কমেন্টেটর মাইক টেস্ট করছে…</b></div>
     <section class="arena" aria-label="UNO খেলার টেবিল">
-      <div id="disconnect" class="notice" hidden></div>
-      <div id="troll-banner" class="troll-banner" hidden></div>
-      <div id="devil-flash" class="devil-flash" hidden>😈 DEVIL! এক সেকেন্ডের জন্য গোপন কার্ড দেখা যাচ্ছে!</div>
-
+      <div id="disconnect" class="notice" hidden></div><div id="troll-banner" class="troll-banner" hidden></div><div id="devil-flash" class="devil-flash" hidden>😈 DEVIL! এক সেকেন্ডের জন্য গোপন কার্ড দেখা যাচ্ছে!</div>
       <div id="opponent-hands" class="opponent-hands"></div>
-
       <div class="center-table">
         <div id="turn" class="turn"></div>
-        <div class="piles">
-          <div class="pile-wrap draw-wrap">
-            <button id="draw" class="uno-card card-back" aria-label="কার্ড তোলো"><span class="uno-logo">DBT</span></button>
-            <div id="draw-count" class="pile-label"></div>
-          </div>
-          <div class="pile-wrap"><div id="discard"></div><div class="pile-label">ফেলা কার্ড</div></div>
-        </div>
+        <div class="piles"><div class="pile-wrap draw-wrap"><button id="draw" class="uno-card card-back" aria-label="কার্ড তোলো"><span class="uno-logo">DBT</span></button><div id="draw-count" class="pile-label"></div></div><div class="pile-wrap"><div id="discard"></div><div class="pile-label">ফেলা কার্ড</div></div></div>
         <div class="status-row"><div id="active-color" class="color-badge"></div><div id="direction" class="direction"></div><div id="clock" class="clock"></div></div>
       </div>
-
-      <div class="me-strip">
-        <div class="me-label"><strong id="my-avatar"></strong> <strong id="my-name"></strong><span id="hand-count"></span></div>
-        <div class="actions"><button id="uno" class="uno-btn">UNO! 🚨</button><button id="catch" class="catch" hidden>ধরছি UNO! 😂</button><button id="pass" hidden>রাখি, পাশ 😅</button></div>
-      </div>
-      <div id="hand" class="hand"></div>
-      <p id="hint" class="hint"></p>
+      <div class="me-strip"><div class="me-label"><strong id="my-avatar"></strong> <strong id="my-name"></strong><span id="hand-count"></span></div><div class="actions"><button id="uno" class="uno-btn">UNO! 🚨</button><button id="catch" class="catch" hidden>ধরছি UNO! 😂</button><button id="pass" hidden>PASS TURN ⏭</button></div></div>
+      <div id="hand" class="hand"></div><p id="hint" class="hint"></p>
     </section>
-
     <section class="party-dock" aria-label="ফাস্ট ট্রল এবং সাউন্ড">
-      <div class="party-box troll-box">
-        <div class="party-title"><b>⚡ ফাস্ট ট্রল</b><small>চাপলেই সবার বোর্ডে বড় করে দেখাবে</small></div>
-        <div id="quick-list" class="quick-list"></div>
-      </div>
-      <div class="party-box sound-box">
-        <div class="party-title"><b>🔊 সাউন্ড</b><small>চাপলেই রুমের সবাই শুনবে</small></div>
-        <div id="sound-list" class="sound-list"></div>
-      </div>
+      <div class="party-box troll-box"><div class="party-title"><b>⚡ ফাস্ট ট্রল</b><small>চাপলেই সবার বোর্ডে বড় করে দেখাবে</small></div><div id="quick-list" class="quick-list"></div></div>
+      <div class="party-box sound-box"><div class="party-title"><b>🔊 সাউন্ড</b><small>চাপলেই রুমের সবাই শুনবে</small></div><div id="sound-list" class="sound-list"></div></div>
     </section>
   </section>
-
-  <div id="toast" role="alert" hidden></div>
-  <div id="reaction-pop" class="reaction-pop" hidden></div>
+  <div id="toast" role="alert" hidden></div><div id="reaction-pop" class="reaction-pop" hidden></div>
 </main>
 
-<dialog id="colors" class="modal-card">
-  <h2>কোন রঙে খেলবে বস? 🎨</h2><p>একটা রঙ বেছে নাও।</p>
-  <div class="color-grid"><button class="RED" data-color="RED">🔴 লাল</button><button class="YELLOW" data-color="YELLOW">🟡 হলুদ</button><button class="GREEN" data-color="GREEN">🟢 সবুজ</button><button class="BLUE" data-color="BLUE">🔵 নীল</button></div>
-  <button id="cancel-color" class="quiet">বাদ দাও</button>
-</dialog>
-
-<dialog id="results" class="modal-card results-card">
-  <div class="trophy">🏆</div><h2 id="winner"></h2><p id="result-reason"></p><div id="scores"></div>
-  <button id="rematch" class="primary big">রিভেঞ্জ চাই 😈</button><button class="quiet leave">আজকে থাক 😅</button>
-</dialog>
-
+<dialog id="colors" class="modal-card"><h2>কোন রঙে খেলবে বস? 🎨</h2><p>একটা রঙ বেছে নাও।</p><div class="color-grid"><button class="RED" data-color="RED">🔴 লাল</button><button class="YELLOW" data-color="YELLOW">🟡 হলুদ</button><button class="GREEN" data-color="GREEN">🟢 সবুজ</button><button class="BLUE" data-color="BLUE">🔵 নীল</button></div><button id="cancel-color" class="quiet">বাদ দাও</button></dialog>
+<dialog id="results" class="modal-card results-card"><div class="trophy">🏆</div><h2 id="winner"></h2><p id="result-reason"></p><div id="scores"></div><button id="rematch" class="primary big">রিভেঞ্জ চাই 😈</button><button class="quiet leave">আজকে থাক 😅</button></dialog>
 <dialog id="history-dialog" class="modal-card"><h2>📊 ম্যাচের হিসাব</h2><div id="history-list"></div><button class="quiet" onclick="this.closest('dialog').close()">বন্ধ</button></dialog>
 <footer>UNO আড্ডা <span>Made with 😂 by DBT</span></footer>
 </body>
