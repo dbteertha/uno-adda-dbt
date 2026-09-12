@@ -7,12 +7,14 @@
   <title>UNO আড্ডা · Made by DBT</title>
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="/launcher.css" />
   <script defer src="/socket.io/socket.io.js"></script>
   <script defer src="/app.js"></script>
+  <script defer src="/launcher.js"></script>
 </head>
 <body>
 <header class="topbar">
-  <a class="brand" href="/">UNO <b>আড্ডা</b><small>Made by DBT</small></a>
+  <button id="home-button" class="brand brand-button" type="button">DBT <b>GAMES</b><small>Made by DBT</small></button>
   <div class="top-actions">
     <button id="sound-toggle" class="icon-btn" title="সাউন্ড">🔊</button>
     <button id="theme-toggle" class="icon-btn" title="ডার্ক/লাইট">🌙</button>
@@ -21,7 +23,53 @@
 </header>
 
 <main>
-  <section id="menu" class="panel hero-panel">
+  <section id="home" class="launcher-home">
+    <div class="launcher-shell">
+      <div class="launcher-nav">
+        <div class="launcher-tabs"><button class="launcher-tab active">Games</button><button class="launcher-tab">Media</button></div>
+        <div class="launcher-brand">MADE BY <b>DBT</b></div>
+      </div>
+
+      <div class="game-rail" aria-label="Games">
+        <button class="game-tile active" data-game="uno" aria-label="UNO Adda"><span class="tile-icon uno-mini">UNO</span><span>UNO Adda</span></button>
+        <button class="game-tile soon" data-game="gta7"><span class="tile-icon">VII</span><span>GTA 7</span></button>
+        <button class="game-tile soon" data-game="forza6"><span class="tile-icon">FH6</span><span>Forza Horizon 6</span></button>
+        <button class="game-tile soon" data-game="fc27"><span class="tile-icon">FC27</span><span>FC 27</span></button>
+        <button class="game-tile soon" data-game="more"><span class="tile-icon">+</span><span>More</span></button>
+      </div>
+
+      <section class="featured-game">
+        <div class="featured-copy">
+          <div class="made-chip">DBT GAMES · FEATURED</div>
+          <h1><span>UNO</span> আড্ডা</h1>
+          <p>বাংলা মজা, ফাস্ট ট্রল, রুম-ওয়াইড সাউন্ড আর Devil Card 😈 — বন্ধুদের নিয়ে সরাসরি টেবিলে নামো।</p>
+          <div class="featured-actions">
+            <button id="home-play-uno" class="launch-btn">▶ PLAY UNO</button>
+            <span>2–4 Players · Bot Mode · Mobile Ready</span>
+          </div>
+        </div>
+        <div class="featured-art" aria-hidden="true">
+          <div class="orb orb-a"></div><div class="orb orb-b"></div><div class="orb orb-c"></div>
+          <div class="hero-card hero-red">7</div><div class="hero-card hero-blue">↻</div><div class="hero-card hero-wild">+4</div><div class="hero-card hero-devil">😈</div>
+          <div class="dbt-watermark">DBT</div>
+        </div>
+      </section>
+
+      <section class="coming-section">
+        <div class="coming-head"><div><small>NEXT FROM DBT</small><h2>Projects to come</h2></div><span>COMING SOON</span></div>
+        <div class="coming-grid">
+          <article><div class="coming-art gta">VII</div><h3>GTA 7</h3><p>DBT fan-project concept · coming soon</p></article>
+          <article><div class="coming-art forza">FH6</div><h3>Forza Horizon 6</h3><p>DBT fan-project concept · coming soon</p></article>
+          <article><div class="coming-art fc">FC 27</div><h3>FC 27</h3><p>DBT fan-project concept · coming soon</p></article>
+          <article><div class="coming-art mystery">?</div><h3>More games</h3><p>আরো পাগলাটে প্রজেক্ট আসছে 😂</p></article>
+        </div>
+      </section>
+
+      <div class="launcher-footer">MADE BY DBT · UNO Adda is the playable project now. Other named titles are future fan-project concepts and are not affiliated with their publishers.</div>
+    </div>
+  </section>
+
+  <section id="menu" class="panel hero-panel" hidden>
     <div class="live-pill">🔴 LIVE PARTY TABLE</div>
     <h1>কার্ড খেলো, ট্রল দাও,<br><span>স্টেডিয়াম গরম করো 😂</span></h1>
     <p>২–৪ জন · বাংলা লাইভ কমেন্ট্রি · ফাস্ট ট্রল · রুম-ওয়াইড সাউন্ড</p>
