@@ -1,9 +1,4 @@
 (() => {
-  const css = document.createElement('link');
-  css.rel = 'stylesheet';
-  css.href = '/flex-home.css';
-  document.head.appendChild(css);
-
   const home = document.getElementById('home');
   const menu = document.getElementById('menu');
   const lobby = document.getElementById('lobby');
@@ -11,57 +6,14 @@
   const play = document.getElementById('home-play-uno');
   const unoTile = document.querySelector('.game-tile[data-game="uno"]');
   const homeButton = document.getElementById('home-button');
+  const createForm = document.getElementById('create');
+  const joinForm = document.getElementById('join');
+  const botButton = document.getElementById('bot-play');
   if (!home || !menu) return;
 
-  if (unoTile) {
-    unoTile.querySelector('span:last-child')?.replaceWith(Object.assign(document.createElement('span'), { textContent: 'UNO Classic' }));
-    const sub = document.createElement('small');
-    sub.textContent = 'Bot · Multi';
-    unoTile.appendChild(sub);
-
-    if (!document.querySelector('[data-game="flex"]')) {
-      const flexTile = document.createElement('button');
-      flexTile.className = 'game-tile flex-tile';
-      flexTile.dataset.game = 'flex';
-      flexTile.type = 'button';
-      flexTile.setAttribute('aria-label', 'UNO Flex');
-      flexTile.innerHTML = '<span class="tile-icon flex-mini">FLEX</span><span>UNO Flex</span><small>Bot · Multi</small>';
-      unoTile.insertAdjacentElement('afterend', flexTile);
-    }
-  }
-
-  if (play) {
-    play.textContent = '▶ PLAY UNO CLASSIC';
-    if (!document.getElementById('home-play-flex')) {
-      const flexPlay = document.createElement('button');
-      flexPlay.id = 'home-play-flex';
-      flexPlay.className = 'launch-btn flex-launch';
-      flexPlay.type = 'button';
-      flexPlay.textContent = '⚡ PLAY UNO FLEX';
-      play.insertAdjacentElement('afterend', flexPlay);
-    }
-  }
-
-  const picker = document.createElement('dialog');
-  picker.id = 'mode-picker';
-  picker.className = 'mode-picker';
-  picker.innerHTML = `
-    <button id="mode-close" class="mode-close" type="button">×</button>
-    <div class="mode-kicker">DBT GAMES · CHOOSE MODE</div>
-    <h2 id="mode-title">UNO Classic</h2>
-    <p id="mode-copy">Choose Bot Mode or Multiplayer.</p>
-    <div class="mode-options">
-      <button id="mode-bot" class="mode-option" type="button"><span>🤖</span><b>BOT MODE</b><small>Play instantly against bots</small></button>
-      <button id="mode-multi" class="mode-option" type="button"><span>👥</span><b>MULTIPLAYER</b><small>Create or join a room</small></button>
-    </div>`;
-  document.body.appendChild(picker);
-
-  const flexTile = document.querySelector('.game-tile[data-game="flex"]');
-  const flexPlay = document.getElementById('home-play-flex');
-  const modeTitle = document.getElementById('mode-title');
-  const modeCopy = document.getElementById('mode-copy');
   let gameOpened = false;
-  let selectedGame = 'classic';
+  let pendingAction = null;
+  let bypassClassic = false;
 
   const activateHome = () => {
     gameOpened = false;
@@ -72,7 +24,7 @@
     document.body.classList.add('launcher-active');
   };
 
-  const activateClassic = () => {
+  const activateUno = () => {
     gameOpened = true;
     home.hidden = true;
     document.body.classList.remove('launcher-active');
@@ -80,46 +32,95 @@
     setTimeout(() => document.getElementById('name')?.focus(), 60);
   };
 
-  const openPicker = (game) => {
-    selectedGame = game;
-    if (game === 'flex') {
-      modeTitle.textContent = 'UNO Flex';
-      modeCopy.textContent = 'Your complete flashcard tutorial opens first, then the selected mode starts.';
-    } else {
-      modeTitle.textContent = 'UNO Classic';
-      modeCopy.textContent = 'Choose Bot Mode or Multiplayer.';
-    }
+  const picker = document.createElement('dialog');
+  picker.id = 'uno-mode-picker';
+  picker.className = 'mode-picker';
+  picker.innerHTML = `
+    <button id="uno-mode-close" class="mode-close" type="button">×</button>
+    <div class="mode-kicker">UNO ADDA · CHOOSE MODE</div>
+    <h2>Which UNO?</h2>
+    <p id="uno-mode-copy">Choose the ruleset for this match.</p>
+    <div class="mode-options">
+      <button id="choose-classic" class="mode-option" type="button"><span>🎴</span><b>UNO CLASSIC</b><small>Original DBT UNO Adda</small></button>
+      <button id="choose-flex" class="mode-option flex-choice" type="button"><span>⚡</span><b>UNO FLEX</b><small>Power Cards · Flex sides · tutorial first</small></button>
+    </div>`;
+  document.body.appendChild(picker);
+
+  const selectedAvatar = () => document.querySelector('#avatars .avatar.active')?.textContent?.trim() || localStorage.getItem('uno-avatar') || '😎';
+  const playerName = () => (document.getElementById('name')?.value || '').trim() || 'DBT Player';
+  const roomCode = () => (document.getElementById('code')?.value || '').trim().toUpperCase();
+
+  const openModePicker = (action) => {
+    pendingAction = action;
+    const copy = document.getElementById('uno-mode-copy');
+    if (copy) copy.textContent = action === 'bot' ? 'Choose Classic or Flex for Bot Mode.' : action === 'join' ? 'Choose the ruleset of the room you are joining.' : 'Choose Classic or Flex for the room you are creating.';
     picker.showModal();
   };
 
-  activateHome();
-  play?.addEventListener('click', () => openPicker('classic'));
-  unoTile?.addEventListener('click', () => openPicker('classic'));
-  flexPlay?.addEventListener('click', () => openPicker('flex'));
-  flexTile?.addEventListener('click', () => openPicker('flex'));
+  const runClassic = () => {
+    const action = pendingAction;
+    pendingAction = null;
+    picker.close();
+    bypassClassic = true;
+    try {
+      if (action === 'bot') botButton?.click();
+      else if (action === 'join') joinForm?.requestSubmit();
+      else createForm?.requestSubmit();
+    } finally {
+      setTimeout(() => { bypassClassic = false; }, 0);
+    }
+  };
 
-  document.getElementById('mode-close')?.addEventListener('click', () => picker.close());
-  document.getElementById('mode-bot')?.addEventListener('click', () => {
+  const runFlex = () => {
+    const action = pendingAction || 'create';
+    pendingAction = null;
     picker.close();
-    if (selectedGame === 'flex') {
-      location.href = '/flex/?mode=bot';
-      return;
+    const params = new URLSearchParams({
+      entry: action,
+      name: playerName(),
+      avatar: selectedAvatar(),
+    });
+    if (action === 'join') {
+      const code = roomCode();
+      if (code.length !== 4) {
+        if (typeof notify === 'function') notify('৪ অক্ষরের রুম কোড দাও 😄');
+        return;
+      }
+      params.set('roomCode', code);
     }
-    activateClassic();
-    setTimeout(() => {
-      const name = document.getElementById('name');
-      if (name && !name.value.trim()) name.value = 'DBT Player';
-      document.getElementById('bot-play')?.click();
-    }, 120);
-  });
-  document.getElementById('mode-multi')?.addEventListener('click', () => {
-    picker.close();
-    if (selectedGame === 'flex') {
-      location.href = '/flex/?mode=multi';
-      return;
-    }
-    activateClassic();
-  });
+    location.href = `/flex/?${params.toString()}`;
+  };
+
+  play?.addEventListener('click', activateUno);
+  unoTile?.addEventListener('click', activateUno);
+  activateHome();
+
+  createForm?.addEventListener('submit', (e) => {
+    if (bypassClassic) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    if (!playerName()) return;
+    openModePicker('create');
+  }, true);
+
+  joinForm?.addEventListener('submit', (e) => {
+    if (bypassClassic) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    if (roomCode().length !== 4) return;
+    openModePicker('join');
+  }, true);
+
+  botButton?.addEventListener('click', (e) => {
+    if (bypassClassic) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    openModePicker('bot');
+  }, true);
+
+  document.getElementById('uno-mode-close')?.addEventListener('click', () => picker.close());
+  document.getElementById('choose-classic')?.addEventListener('click', runClassic);
+  document.getElementById('choose-flex')?.addEventListener('click', runFlex);
 
   homeButton?.addEventListener('click', () => {
     try {
@@ -140,26 +141,14 @@
   });
 
   document.querySelectorAll('.launcher-tab').forEach((button) => {
-    if (!button.classList.contains('active')) {
-      button.addEventListener('click', () => {
-        if (typeof notify === 'function') notify('DBT Media — coming soon 🎬🔥');
-      });
-    }
+    if (!button.classList.contains('active')) button.addEventListener('click', () => {
+      if (typeof notify === 'function') notify('DBT Media — coming soon 🎬🔥');
+    });
   });
 
   try {
-    socket.on('connect', () => {
-      if (!gameOpened && !state) activateHome();
-    });
-    socket.on('s_sync_state', () => {
-      gameOpened = true;
-      home.hidden = true;
-      document.body.classList.remove('launcher-active');
-    });
-    socket.on('s_room_created', () => {
-      gameOpened = true;
-      home.hidden = true;
-      document.body.classList.remove('launcher-active');
-    });
+    socket.on('connect', () => { if (!gameOpened && !state) activateHome(); });
+    socket.on('s_sync_state', () => { gameOpened = true; home.hidden = true; document.body.classList.remove('launcher-active'); });
+    socket.on('s_room_created', () => { gameOpened = true; home.hidden = true; document.body.classList.remove('launcher-active'); });
   } catch {}
 })();
