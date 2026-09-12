@@ -59,6 +59,8 @@ type Room = {
   updatedAt: number;
   pendingDraw4: PendingDraw4 | null;
   lastAction: string;
+  drawnBy: string | null;
+  identity: Map<string, string>;
 };
 
 const COLORS: Color[] = ["RED", "YELLOW", "GREEN", "BLUE"];
@@ -81,6 +83,10 @@ function card(kind: CardKind, color: Color | null, value: number | null, flexCol
   return { id: randomUUID(), kind, color, value, flexColor, flipPower };
 }
 
+function signature(c: Card) {
+  return `${c.kind}|${c.color ?? "WILD"}|${c.value ?? ""}|${c.flexColor ?? ""}|${c.flipPower ? 1 : 0}`;
+}
+
 function makeDeck(): Card[] {
   const cards: Card[] = [];
   for (let c = 0; c < COLORS.length; c++) {
@@ -100,6 +106,28 @@ function makeDeck(): Card[] {
     cards.push(card("WILD_FLEX_DRAW4", null, null, "GREEN"));
   }
   return shuffle(cards);
+}
+
+function allCards(room: Room) {
+  return [...room.deck, ...room.discard, ...room.players.flatMap((p) => p.hand)];
+}
+
+function captureIdentity(room: Room) {
+  room.identity.clear();
+  for (const c of allCards(room)) room.identity.set(c.id, signature(c));
+}
+
+function assertIntegrity(room: Room) {
+  if (room.status === "LOBBY") return;
+  const cards = allCards(room);
+  if (cards.length !== 112) throw Error(`FLEX_CARD_CONSERVATION:${cards.length}`);
+  const ids = new Set<string>();
+  for (const c of cards) {
+    if (ids.has(c.id)) throw Error(`FLEX_DUPLICATE_CARD:${c.id}`);
+    ids.add(c.id);
+    const expected = room.identity.get(c.id);
+    if (!expected || expected !== signature(c)) throw Error(`FLEX_CARD_MUTATED:${c.id}`);
+  }
 }
 
 function nextIndex(room: Room, steps = 1) {
@@ -140,13 +168,21 @@ function resetPowerIfAllOff(room: Room) {
   }
 }
 
+function symbolGroup(kind: CardKind) {
+  if (kind === "FLEX_SKIP") return "SKIP";
+  if (kind === "FLEX_REVERSE") return "REVERSE";
+  if (kind === "FLEX_DRAW2") return "DRAW2";
+  return kind;
+}
+
 function regularMatch(c: Card, room: Room) {
   const top = room.discard.at(-1);
   if (!top) return true;
   if (c.color === null) return true;
   if (c.color === room.activeColor) return true;
   if (c.kind === "NUMBER" && top.kind === "NUMBER" && c.value === top.value) return true;
-  return c.kind !== "NUMBER" && c.kind === top.kind;
+  if (c.kind !== "NUMBER" && top.kind !== "NUMBER" && symbolGroup(c.kind) === symbolGroup(top.kind)) return true;
+  return false;
 }
 
 function flexMatch(c: Card, room: Room, p: Player) {
@@ -175,6 +211,7 @@ function sync(room: Room, token: string) {
     currentToken: room.players[room.current]?.token ?? null,
     top: room.discard.at(-1) ?? null,
     deckCount: room.deck.length,
+    hasDrawn: room.drawnBy === token,
     pendingDraw4: room.pendingDraw4 && room.pendingDraw4.victim === token ? { canChallenge: true } : null,
     lastAction: room.lastAction,
     hand: me.hand.map((c) => ({ ...c, legalSides: room.status === "PLAYING" && room.players[room.current]?.token === token && !room.pendingDraw4 ? legalSides(c, room, me) : [] })),
@@ -207,6 +244,7 @@ export function registerUnoFlex(io: Server) {
   }
 
   function publish(room: Room) {
+    assertIntegrity(room);
     room.updatedAt = Date.now();
     for (const p of room.players) if (!p.isBot && p.connected) nsp.to(p.socketId).emit("f_state", sync(room, p.token));
   }
@@ -214,11 +252,12 @@ export function registerUnoFlex(io: Server) {
   function start(room: Room) {
     const active = room.players.filter((p) => p.connected || p.isBot);
     if (active.length < 2) throw Error("কমপক্ষে ২ জন লাগবে।");
-    room.deck = makeDeck(); room.discard = []; room.current = 0; room.direction = 1; room.winner = null; room.pendingDraw4 = null;
+    room.deck = makeDeck(); room.discard = []; room.current = 0; room.direction = 1; room.winner = null; room.pendingDraw4 = null; room.drawnBy = null;
     for (const p of room.players) { p.hand = []; p.powerOn = true; p.unoCalled = false; for (let i = 0; i < 7; i++) draw(room, p, 1); }
     let starter = drawOne(room);
     while (starter.kind !== "NUMBER") { room.deck.unshift(starter); shuffle(room.deck); starter = drawOne(room); }
     room.discard.push(starter); room.activeColor = starter.color ?? "RED"; room.status = "PLAYING"; room.lastAction = "গেম শুরু — Power Cards ON ✅";
+    captureIdentity(room);
     publish(room);
     scheduleBot(room);
   }
@@ -229,17 +268,21 @@ export function registerUnoFlex(io: Server) {
     if (active.length >= 2 && active.every((p) => p.ready)) start(room);
   }
 
-  function advance(room: Room, steps = 1) { room.current = nextIndex(room, steps); }
+  function advance(room: Room, steps = 1) {
+    room.drawnBy = null;
+    room.current = nextIndex(room, steps);
+  }
 
   function finishIfWinner(room: Room, p: Player) {
-    if (p.hand.length === 0) { room.status = "FINISHED"; room.winner = p.token; room.lastAction = `${p.name} জিতে গেছে 🏆`; return true; }
+    if (p.hand.length === 0) { room.status = "FINISHED"; room.winner = p.token; room.drawnBy = null; room.lastAction = `${p.name} জিতে গেছে 🏆`; return true; }
     return false;
   }
 
   function applyCard(room: Room, p: Player, c: Card, side: "REGULAR" | "FLEX", chosenColor?: Color, targetToken?: string) {
     const flex = side === "FLEX";
     if (flex) p.powerOn = false;
-    if (c.color) room.activeColor = flex ? (c.flexColor ?? room.activeColor) : c.color;
+    // A non-Wild FLEX side matches the current color but does NOT change the color in play.
+    if (!flex && c.color) room.activeColor = c.color;
     if (c.color === null && chosenColor) room.activeColor = chosenColor;
     room.lastAction = `${p.name} ${flex ? "FLEX" : "REGULAR"} ${c.kind} খেলেছে`;
     if (c.flipPower) p.powerOn = !p.powerOn;
@@ -274,6 +317,7 @@ export function registerUnoFlex(io: Server) {
           const victimIdx = nextIndex(room); const victim = room.players[victimIdx];
           room.pendingDraw4 = { offender: p.token, victim: victim.token, chosenColor: room.activeColor, offenderHadMatchingColor: false };
           room.current = victimIdx;
+          room.drawnBy = null;
           room.lastAction = `${victim.name}: +4 নেবে নাকি Challenge করবে?`;
         }
         break;
@@ -301,17 +345,17 @@ export function registerUnoFlex(io: Server) {
     if (room.players[room.current]?.token !== token) throw Error("তোমার টার্ন না।");
     const idx = p.hand.findIndex((x) => x.id === cardId); if (idx < 0) throw Error("কার্ড পাওয়া যায়নি।");
     const c = p.hand[idx];
-    if (!legalSides(c, room, p).includes(side)) throw Error(side === "FLEX" ? "Power ON না থাকলে বা flex color না মিললে এই side খেলা যাবে না।" : "কার্ডটি match করছে না।");
+    if (!legalSides(c, room, p).includes(side)) throw Error(side === "FLEX" ? "Power ON না থাকলে বা flex color না মিললে এই side খেলা যাবে না।" : "কার্ডটি color, number বা symbol দিয়ে match করছে না।");
     const oldActive = room.activeColor;
     if (c.color === null && !chosenColor) throw Error("একটি color বেছে নাও।");
+    const hadMatchingColor = p.hand.some((x) => x.id !== c.id && (x.color === oldActive || x.color === null));
     p.hand.splice(idx, 1);
     room.discard.push(c);
-    if (chosenColor) room.activeColor = chosenColor;
+    applyCard(room, p, c, side, chosenColor, targetToken);
     if (c.kind === "WILD_FLEX_DRAW4" && side === "REGULAR") {
-      const had = p.hand.some((x) => x.color === oldActive || x.color === null);
-      applyCard(room, p, c, side, chosenColor, targetToken);
-      if (room.pendingDraw4) room.pendingDraw4.offenderHadMatchingColor = had;
-    } else applyCard(room, p, c, side, chosenColor, targetToken);
+      const pending: PendingDraw4 | null = room.pendingDraw4;
+      if (pending) pending.offenderHadMatchingColor = hadMatchingColor;
+    }
     if (p.hand.length !== 1) p.unoCalled = false;
     if (!finishIfWinner(room, p)) scheduleBot(room);
     publish(room);
@@ -346,6 +390,12 @@ export function registerUnoFlex(io: Server) {
     setTimeout(() => botTurn(room, current), 550 + randomInt(500));
   }
 
+  const makeRoom = (mode: "BOT" | "MULTI"): Room => ({
+    code: makeCode(rooms), players: [], deck: [], discard: [], activeColor: "RED", current: 0, direction: 1,
+    status: "LOBBY", winner: null, mode, updatedAt: Date.now(), pendingDraw4: null,
+    lastAction: mode === "BOT" ? "Bot match তৈরি হয়েছে" : "Flex room তৈরি হয়েছে", drawnBy: null, identity: new Map(),
+  });
+
   nsp.on("connection", (socket: Socket) => {
     function bind<T>(event: string, schema: z.ZodType<T>, fn: (data: T) => void) {
       socket.on(event, (raw: unknown) => {
@@ -363,12 +413,10 @@ export function registerUnoFlex(io: Server) {
     }
 
     bind("f_create_multi", z.object({ displayName: nameSchema, avatar: avatarSchema }).strict(), ({ displayName, avatar }) => {
-      free(); const room: Room = { code: makeCode(rooms), players: [], deck: [], discard: [], activeColor: "RED", current: 0, direction: 1, status: "LOBBY", winner: null, mode: "MULTI", updatedAt: Date.now(), pendingDraw4: null, lastAction: "Flex room তৈরি হয়েছে" };
-      rooms.set(room.code, room); attach(room, displayName, avatar);
+      free(); const room = makeRoom("MULTI"); rooms.set(room.code, room); attach(room, displayName, avatar);
     });
     bind("f_create_bot", z.object({ displayName: nameSchema, avatar: avatarSchema }).strict(), ({ displayName, avatar }) => {
-      free(); const room: Room = { code: makeCode(rooms), players: [], deck: [], discard: [], activeColor: "RED", current: 0, direction: 1, status: "LOBBY", winner: null, mode: "BOT", updatedAt: Date.now(), pendingDraw4: null, lastAction: "Bot match তৈরি হয়েছে" };
-      rooms.set(room.code, room); attach(room, displayName, avatar);
+      free(); const room = makeRoom("BOT"); rooms.set(room.code, room); attach(room, displayName, avatar);
       const bots = [["Flex Bot A","🤖"],["Flex Bot B","😈"],["Flex Bot C","🧠"]] as const;
       for (const [botName, botAvatar] of bots) room.players.push({ token: randomUUID(), socketId: "", name: botName, avatar: botAvatar, hand: [], ready: true, connected: true, isBot: true, powerOn: true, unoCalled: false });
       start(room);
@@ -383,7 +431,17 @@ export function registerUnoFlex(io: Server) {
     });
     bind("f_ready", z.object({ ready: z.boolean() }).strict(), ({ ready }) => { const { room, token } = session(); player(room, token).ready = ready; maybeStart(room); publish(room); });
     bind("f_play", z.object({ cardId: uuidSchema, side: z.enum(["REGULAR","FLEX"]), chosenColor: colorSchema.optional(), targetToken: uuidSchema.optional() }).strict(), (d) => { const { room, token } = session(); play(room, token, d.cardId, d.side, d.chosenColor, d.targetToken); });
-    bind("f_draw", empty, () => { const { room, token } = session(); if (room.pendingDraw4) throw Error("আগে +4 resolve করো।"); const p = player(room, token); if (room.players[room.current]?.token !== token) throw Error("তোমার টার্ন না।"); p.hand.push(drawOne(room)); room.lastAction = `${p.name} একটি কার্ড তুলেছে`; advance(room); publish(room); scheduleBot(room); });
+    bind("f_draw", empty, () => {
+      const { room, token } = session(); if (room.pendingDraw4) throw Error("আগে +4 resolve করো।");
+      const p = player(room, token); if (room.players[room.current]?.token !== token) throw Error("তোমার টার্ন না।");
+      if (room.drawnBy === token) throw Error("এই টার্নে ইতিমধ্যে একটি কার্ড তুলেছো। এখন খেলো বা PASS দাও।");
+      p.hand.push(drawOne(room)); room.drawnBy = token; room.lastAction = `${p.name} একটি কার্ড তুলেছে — এখন খেলতে বা PASS দিতে পারে`; publish(room);
+    });
+    bind("f_pass", empty, () => {
+      const { room, token } = session(); if (room.pendingDraw4) throw Error("আগে +4 resolve করো।");
+      const p = player(room, token); if (room.players[room.current]?.token !== token) throw Error("তোমার টার্ন না।");
+      room.lastAction = `${p.name} PASS দিয়েছে`; advance(room); publish(room); scheduleBot(room);
+    });
     bind("f_uno", empty, () => { const { room, token } = session(); const p = player(room, token); if (p.hand.length !== 1) throw Error("UNO বলার সময় এখনো হয়নি।"); p.unoCalled = true; room.lastAction = `${p.name}: UNO! 🚨`; publish(room); });
     bind("f_catch", empty, () => { const { room, token } = session(); const catcher = player(room, token); const target = room.players.find((p) => p.token !== token && p.hand.length === 1 && !p.unoCalled); if (!target) throw Error("কাউকে catch করা যাচ্ছে না।"); draw(room, target, 2); target.unoCalled = false; room.lastAction = `${catcher.name} ${target.name}-কে UNO catch করেছে — +2`; publish(room); });
     bind("f_draw4", z.object({ challenge: z.boolean() }).strict(), ({ challenge }) => { const { room, token } = session(); const p = player(room, token); resolveDraw4(room, p, challenge); publish(room); scheduleBot(room); });
