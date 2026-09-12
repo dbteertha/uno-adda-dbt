@@ -1,0 +1,21 @@
+/* Premium physical-table treatment for UNO Classic. Keeps game logic untouched. */
+body:not(.launcher-active){background:radial-gradient(circle at 50% -10%,#21314b 0,#0a0e16 48%,#05070b 100%)}
+#menu.panel,#lobby.panel{background:linear-gradient(155deg,rgba(26,31,45,.98),rgba(10,13,21,.98));border:1px solid rgba(255,255,255,.12);box-shadow:0 28px 90px rgba(0,0,0,.52),inset 0 1px 0 rgba(255,255,255,.06)}
+#board .arena{position:relative;border:1px solid rgba(214,188,113,.35);border-radius:34px;padding:20px;background:radial-gradient(ellipse at 50% 48%,#176344 0,#0c452f 47%,#07291f 78%,#041810 100%);box-shadow:inset 0 0 90px rgba(0,0,0,.48),0 30px 80px rgba(0,0,0,.45)}
+#board .arena:after{content:"UNO CLASSIC · DBT";position:absolute;left:50%;top:45%;transform:translate(-50%,-50%) rotate(-10deg);font-weight:1000;font-size:clamp(2.3rem,8vw,7rem);letter-spacing:.06em;color:rgba(255,255,255,.035);pointer-events:none;white-space:nowrap}
+#board .center-table,#board .opponent-hands,#board .me-strip,#board .hand{position:relative;z-index:1}
+.uno-card{border:7px solid #f7f2e7;border-radius:15px;box-shadow:0 12px 24px rgba(0,0,0,.42),inset 0 0 0 1px rgba(0,0,0,.16);background-clip:padding-box;isolation:isolate}
+.uno-card:before{inset:14px 5px;border-radius:55% 45% 55% 45%;box-shadow:0 0 0 1px rgba(0,0,0,.08),inset 0 0 18px rgba(255,255,255,.55)}
+.uno-card:after{content:"";position:absolute;inset:0;z-index:4;pointer-events:none;background:linear-gradient(120deg,rgba(255,255,255,.22),transparent 24%,transparent 68%,rgba(0,0,0,.08));mix-blend-mode:soft-light}
+.uno-card .face{font-family:Arial Black,Impact,sans-serif;font-style:italic;font-size:2.65rem;filter:drop-shadow(0 2px 0 rgba(255,255,255,.6))}
+.card-back{background:radial-gradient(ellipse at center,#ed2b43 0 32%,#111827 34% 55%,#07090e 57% 100%)!important}
+.card-back:before{background:transparent;border:3px solid rgba(255,255,255,.88);box-shadow:0 0 0 4px #ed2b43,0 0 0 7px #111827}
+.uno-logo{font-family:Arial Black,Impact,sans-serif;letter-spacing:-.08em;text-shadow:0 2px 4px #000}
+.uno-card.WILD{background:conic-gradient(from 45deg,#e72c43 0 25%,#1474d8 0 50%,#21a85e 0 75%,#f1bd1b 0)}
+.uno-card.WILD:before{background:#f7f2e7}
+.hand .uno-card{transition:transform .18s ease,filter .18s ease,box-shadow .18s ease}
+.hand .uno-card.playable{filter:drop-shadow(0 0 11px rgba(255,205,55,.65));box-shadow:0 14px 28px rgba(0,0,0,.5)}
+#devil-flash{border:1px solid #ee57ff;background:radial-gradient(circle,#5a176f,#200527);box-shadow:0 0 34px rgba(230,75,255,.42);font-weight:1000}
+.classic-share-box{display:grid;gap:8px;margin:14px 0;padding:14px;border:1px solid rgba(255,255,255,.12);border-radius:16px;background:rgba(4,8,14,.45);text-align:left}.classic-share-box small{color:var(--muted)}.classic-share-row{display:flex;gap:8px}.classic-share-row input{font-size:.8rem}.classic-share-row button{flex:0 0 auto;border-radius:12px;padding:0 15px;background:#fff;color:#111}
+.name-gate{width:min(520px,calc(100% - 26px));border:1px solid rgba(255,255,255,.14);border-radius:26px;background:radial-gradient(circle at 80% 0,#ff3f6938,transparent 35%),linear-gradient(145deg,#171c2b,#090c13);color:#fff;padding:28px;box-shadow:0 35px 100px #000b}.name-gate::backdrop{background:#02050bd9;backdrop-filter:blur(10px)}.name-gate h2{font-size:clamp(2rem,7vw,3.7rem);line-height:.95;margin:8px 0 12px}.name-gate p{color:#aeb7cb}.name-gate input{margin:10px 0 12px}.name-gate button{width:100%;padding:14px;border-radius:14px;background:linear-gradient(135deg,#fff,#e8ecf7);color:#10131b}.name-gate small{display:block;margin-top:10px;color:#76809a;text-align:center}
+@media(max-width:620px){#board .arena{border-radius:24px;padding:12px}.classic-share-row{flex-direction:column}.classic-share-row button{padding:11px}.uno-card{border-width:5px}}
