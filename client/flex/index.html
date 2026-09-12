@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+  <meta name="theme-color" content="#090c19" />
+  <title>UNO Flex · DBT Games</title>
+  <link rel="stylesheet" href="/flex/flex.css" />
+  <script defer src="/socket.io/socket.io.js"></script>
+  <script defer src="/flex/flex.js"></script>
+</head>
+<body>
+<header class="flex-top"><a href="/">← DBT GAMES</a><div><b>UNO FLEX</b><small>Dare · Battle · Triumph</small></div><button id="tutorial-again">Tutorial</button></header>
+<main>
+  <section id="tutorial" class="screen tutorial-screen">
+    <div class="tutorial-head"><span>UNO FLEX · FLASHCARD TUTORIAL</span><strong id="tutorial-progress">1 / 10</strong></div>
+    <div id="tutorial-card" class="flashcard"></div>
+    <div class="tutorial-controls"><button id="tutorial-back" class="ghost">← Back</button><button id="tutorial-next" class="primary">Next →</button></div>
+  </section>
+
+  <section id="mode" class="screen" hidden>
+    <div class="hero"><span class="chip">POWER ON ⚡</span><h1>UNO <em>FLEX</em></h1><p>Classic matching + Flex sides + Power Cards. Pick how you want to play.</p></div>
+    <div class="mode-grid">
+      <button class="mode-card" data-mode="bot"><span>🤖</span><b>BOT MODE</b><small>You vs 3 Flex bots</small></button>
+      <button class="mode-card" data-mode="multi"><span>👥</span><b>MULTIPLAYER</b><small>2–8 players · room code</small></button>
+    </div>
+  </section>
+
+  <section id="setup" class="screen panel" hidden>
+    <button class="back-link" data-go="mode">← Modes</button>
+    <span class="chip" id="setup-mode-label">MULTIPLAYER</span>
+    <h2>Enter the Flex table</h2>
+    <label>Name<input id="name" maxlength="24" placeholder="DBT Player" /></label>
+    <div class="avatars" id="avatars"><button class="active">😎</button><button>🤖</button><button>😈</button><button>👻</button><button>🥷</button><button>🧠</button></div>
+    <button id="create-flex" class="primary wide">Create Flex Room ⚡</button>
+    <div id="join-wrap"><div class="or">OR JOIN</div><div class="join-row"><input id="room-code" maxlength="4" placeholder="ABCD" /><button id="join-flex">Join</button></div></div>
+  </section>
+
+  <section id="lobby" class="screen panel" hidden>
+    <span class="chip">FLEX LOBBY</span><h2>Room <button id="room-code-show" class="code"></button></h2>
+    <p>Everyone starts with Power ON. Ready up when your squad is here.</p>
+    <div id="lobby-players" class="players"></div>
+    <button id="ready" class="primary wide">READY ⚡</button>
+  </section>
+
+  <section id="game" class="screen game-screen" hidden>
+    <div class="game-bar"><button id="leave" class="ghost">← Home</button><div id="status">UNO FLEX</div><div id="active-color" class="active-color"></div></div>
+    <div id="challenge" class="challenge" hidden><b>Wild Draw 4!</b><span>Accept +4 or challenge the player?</span><div><button id="accept4">Accept +4</button><button id="challenge4" class="danger">Challenge</button></div></div>
+    <div id="players" class="players game-players"></div>
+    <div class="table">
+      <button id="draw" class="draw-pile"><span>DBT</span><small id="deck-count">DRAW</small></button>
+      <div id="discard" class="discard"></div>
+    </div>
+    <div id="action-log" class="action-log"></div>
+    <div class="my-strip"><div><b id="me-name"></b><span id="power-pill" class="power on">POWER ON ✓</span></div><div><button id="uno" class="uno-btn">UNO!</button><button id="catch" class="ghost">Catch UNO +2</button></div></div>
+    <div id="hand" class="hand"></div>
+  </section>
+</main>
+<div id="toast" class="toast" hidden></div>
+<dialog id="play-dialog">
+  <h3 id="play-title">Play card</h3><p id="play-desc"></p>
+  <div id="side-buttons" class="side-buttons"></div>
+  <div id="color-buttons" class="color-buttons" hidden><button data-color="RED">Red</button><button data-color="YELLOW">Yellow</button><button data-color="GREEN">Green</button><button data-color="BLUE">Blue</button></div>
+  <select id="target" hidden></select>
+  <button id="cancel-play" class="ghost wide">Cancel</button>
+</dialog>
+</body>
+</html>
