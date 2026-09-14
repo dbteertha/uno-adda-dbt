@@ -9,7 +9,7 @@ import { registerClassicPowers } from "./ClassicPowers.js";
 
 const server = createUnoServer();
 registerUnoFlex(server.io);
-registerPresence(server.io);
+registerPresence(server.io, server.rooms);
 registerClassicPowers(server.io, server.rooms);
 
 // Pretty invite links such as /room=ABCD?mode=classic or ?mode=flex.
