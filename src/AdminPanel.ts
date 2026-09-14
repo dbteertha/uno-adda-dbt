@@ -5,6 +5,13 @@ import path from "node:path";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Server } from "socket.io";
 
+type VisualEdit = {
+  selector: string;
+  text?: string;
+  hidden?: boolean;
+  styles?: Record<string, string>;
+};
+
 export type AdminConfig = {
   launcherTitle: string;
   launcherSubtitle: string;
@@ -30,6 +37,7 @@ export type AdminConfig = {
   background: string;
   avatars: Array<{ icon: string; label: string }>;
   customCSS: string;
+  visualEdits: VisualEdit[];
 };
 
 const DEFAULT_CONFIG: AdminConfig = {
@@ -64,6 +72,7 @@ const DEFAULT_CONFIG: AdminConfig = {
     { icon: "🪨", label: "Dwayne Johnson" },
   ],
   customCSS: "",
+  visualEdits: [],
 };
 
 const clientDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../client");
@@ -76,6 +85,23 @@ function cleanString(value: unknown, fallback: string, max = 4000) {
 function cleanBool(value: unknown, fallback: boolean) { return typeof value === "boolean" ? value : fallback; }
 function cleanColor(value: unknown, fallback: string) {
   return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
+}
+function cleanVisualEdits(raw: unknown): VisualEdit[] {
+  if (!Array.isArray(raw)) return [];
+  const allowedStyles = new Set(["transform","width","height","minWidth","minHeight","fontSize","fontWeight","color","background","backgroundColor","borderColor","borderRadius","padding","margin","opacity","textAlign","letterSpacing","lineHeight","display","position","left","top","right","bottom","zIndex","boxShadow"]);
+  return raw.slice(0, 500).flatMap((item: any) => {
+    if (!item || typeof item.selector !== "string" || item.selector.length > 300) return [];
+    const styles: Record<string, string> = {};
+    if (item.styles && typeof item.styles === "object") {
+      for (const [k, v] of Object.entries(item.styles)) if (allowedStyles.has(k) && typeof v === "string" && v.length <= 500) styles[k] = v;
+    }
+    return [{
+      selector: item.selector,
+      ...(typeof item.text === "string" ? { text: item.text.slice(0, 8000) } : {}),
+      ...(typeof item.hidden === "boolean" ? { hidden: item.hidden } : {}),
+      ...(Object.keys(styles).length ? { styles } : {}),
+    }];
+  });
 }
 function normalize(raw: any): AdminConfig {
   const avatars = Array.isArray(raw?.avatars)
@@ -106,6 +132,7 @@ function normalize(raw: any): AdminConfig {
     background: cleanColor(raw?.background, DEFAULT_CONFIG.background),
     avatars,
     customCSS: cleanString(raw?.customCSS, "", 16000),
+    visualEdits: cleanVisualEdits(raw?.visualEdits),
   };
 }
 
@@ -113,7 +140,7 @@ export function getAdminConfig(): AdminConfig {
   try {
     if (existsSync(configPath)) return normalize(JSON.parse(readFileSync(configPath, "utf8")));
   } catch (error) { console.error("[Admin config read]", error); }
-  return { ...DEFAULT_CONFIG, avatars: DEFAULT_CONFIG.avatars.map((x) => ({ ...x })) };
+  return { ...DEFAULT_CONFIG, avatars: DEFAULT_CONFIG.avatars.map((x) => ({ ...x })), visualEdits: [] };
 }
 
 function saveAdminConfig(config: AdminConfig) {
@@ -139,7 +166,7 @@ async function readJson(req: IncomingMessage) {
   const chunks: Buffer[] = []; let total = 0;
   for await (const chunk of req) {
     const b = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-    total += b.length; if (total > 80_000) throw Error("Payload too large");
+    total += b.length; if (total > 180_000) throw Error("Payload too large");
     chunks.push(b);
   }
   return chunks.length ? JSON.parse(Buffer.concat(chunks).toString("utf8")) : {};
@@ -155,9 +182,8 @@ export async function handleAdminRequest(req: IncomingMessage, res: ServerRespon
 
   if (url.pathname === "/admin" && req.method === "GET") {
     try {
-      res.statusCode = 200; res.setHeader("Content-Type", "text/html; charset=utf-8"); res.setHeader("Cache-Control", "no-store");
-      res.end(readFileSync(path.join(clientDir, "admin.html"))); return true;
-    } catch { res.statusCode = 500; res.end("Admin panel unavailable"); return true; }
+      res.statusCode = 302; res.setHeader("Location", "/?edit=1"); res.end(); return true;
+    } catch { res.statusCode = 500; res.end("Admin editor unavailable"); return true; }
   }
 
   if (!url.pathname.startsWith("/api/admin/")) return false;
