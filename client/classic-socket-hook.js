@@ -30,6 +30,12 @@
           fix.dataset.adminSaveFix = '1';
           document.body.appendChild(fix);
         }
+        if (!document.querySelector('script[data-admin-undo-redo]')) {
+          const history = document.createElement('script');
+          history.src = '/admin-undo-redo.js?v=1';
+          history.dataset.adminUndoRedo = '1';
+          document.body.appendChild(history);
+        }
       };
       document.body.appendChild(admin);
     };
