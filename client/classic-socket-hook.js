@@ -9,4 +9,12 @@
   };
   Object.assign(wrapped, original);
   window.io = wrapped;
+
+  window.addEventListener('load', () => {
+    if (!window.DBT_CLASSIC_SOCKET || document.querySelector('script[data-mr-bean-commentary]')) return;
+    const script = document.createElement('script');
+    script.src = '/mr-bean-commentary.js';
+    script.dataset.mrBeanCommentary = '1';
+    document.body.appendChild(script);
+  }, { once: true });
 })();
