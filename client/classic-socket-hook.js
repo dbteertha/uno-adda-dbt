@@ -13,24 +13,37 @@
   window.addEventListener('load', () => {
     if (!document.querySelector('script[data-admin-lock]')) {
       const lock = document.createElement('script');
-      lock.src = '/admin-lock.js?v=hidden-editor-3';
+      lock.src = '/admin-lock.js?v=hidden-editor-4';
       lock.dataset.adminLock = '1';
       document.body.appendChild(lock);
     }
-    if (!document.querySelector('script[data-admin-runtime]')) {
+
+    const loadRuntime = () => {
+      if (document.querySelector('script[data-admin-runtime]')) return;
       const admin = document.createElement('script');
-      admin.src = '/admin-runtime.js?v=hidden-editor-3';
+      admin.src = '/admin-runtime.js?v=save-replay-2';
       admin.dataset.adminRuntime = '1';
       admin.onload = () => {
         if (!document.querySelector('script[data-admin-save-fix]')) {
           const fix = document.createElement('script');
-          fix.src = '/admin-save-fix.js?v=1';
+          fix.src = '/admin-save-fix.js?v=2';
           fix.dataset.adminSaveFix = '1';
           document.body.appendChild(fix);
         }
       };
       document.body.appendChild(admin);
+    };
+
+    if (!document.querySelector('script[data-admin-key-fix]')) {
+      const keys = document.createElement('script');
+      keys.src = '/admin-key-fix.js?v=1';
+      keys.dataset.adminKeyFix = '1';
+      keys.onload = loadRuntime;
+      document.body.appendChild(keys);
+    } else {
+      loadRuntime();
     }
+
     if (!window.DBT_CLASSIC_SOCKET || document.querySelector('script[data-mr-bean-commentary]')) return;
     const script = document.createElement('script');
     script.src = '/mr-bean-commentary.js';
