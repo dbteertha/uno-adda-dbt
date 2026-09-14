@@ -6,16 +6,29 @@ import { createUnoServer } from "./server.js";
 import { registerUnoFlex } from "./UnoFlex.js";
 import { registerPresence } from "./Presence.js";
 import { registerClassicPowers } from "./ClassicPowers.js";
+import { handleAdminRequest } from "./AdminPanel.js";
 
 const server = createUnoServer();
 registerUnoFlex(server.io);
 registerPresence(server.io, server.rooms);
 registerClassicPowers(server.io, server.rooms);
 
-// Pretty invite links such as /room=ABCD?mode=classic or ?mode=flex.
+// Pretty invite links and the protected in-game admin API.
 const originalRequestListeners = server.http.listeners("request");
 server.http.removeAllListeners("request");
-server.http.on("request", (req: IncomingMessage, res: ServerResponse) => {
+server.http.on("request", async (req: IncomingMessage, res: ServerResponse) => {
+  try {
+    if (await handleAdminRequest(req, res, server.io)) return;
+  } catch (error) {
+    console.error("[DBT admin request]", error);
+    if (!res.headersSent) {
+      res.statusCode = 500;
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.end(JSON.stringify({ error: "Admin request failed" }));
+    }
+    return;
+  }
+
   const pathname = new URL(req.url ?? "/", "http://dbt.local").pathname;
   if (/^\/room=[A-Z2-9]{4}\/?$/i.test(pathname)) {
     try {
