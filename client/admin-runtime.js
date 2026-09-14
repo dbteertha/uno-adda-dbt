@@ -11,6 +11,20 @@
     if (el) el.hidden = !visible;
   };
 
+  function ensureAdminButton() {
+    if (document.getElementById('dbt-admin-open')) return;
+    const actions = document.querySelector('.top-actions');
+    if (!actions) return;
+    const b = document.createElement('button');
+    b.id = 'dbt-admin-open';
+    b.className = 'icon-btn';
+    b.type = 'button';
+    b.title = 'DBT Admin Control Center';
+    b.textContent = '⚙️';
+    b.addEventListener('click', () => location.href = '/admin');
+    actions.prepend(b);
+  }
+
   function ensureAnnouncement(message) {
     let bar = document.getElementById('admin-announcement');
     if (!message) { if (bar) bar.remove(); return; }
@@ -34,7 +48,9 @@
       b.className = 'avatar' + ((item.label === selected || (!selected && index === 0)) ? ' active' : '');
       b.dataset.avatar = item.icon || '🎮';
       b.dataset.person = item.label || 'Player';
-      b.innerHTML = `<span>${String(item.icon || '🎮').replace(/[<>]/g,'')}</span><small>${String(item.label || 'Player').replace(/[<>]/g,'')}</small>`;
+      const icon = document.createElement('span'); icon.textContent = item.icon || '🎮';
+      const label = document.createElement('small'); label.textContent = item.label || 'Player';
+      b.append(icon, label);
       wrap.appendChild(b);
     });
   }
@@ -86,6 +102,7 @@
     window.dispatchEvent(new CustomEvent('dbt-admin-config', { detail: next }));
   }
 
+  ensureAdminButton();
   fetch('/api/config', { cache: 'no-store' }).then((r) => r.ok ? r.json() : null).then(apply).catch(() => {});
 
   const waitSocket = setInterval(() => {
