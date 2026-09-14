@@ -13,13 +13,13 @@
   window.addEventListener('load', () => {
     if (!document.querySelector('script[data-admin-lock]')) {
       const lock = document.createElement('script');
-      lock.src = '/admin-lock.js';
+      lock.src = '/admin-lock.js?v=hidden-editor-2';
       lock.dataset.adminLock = '1';
       document.body.appendChild(lock);
     }
     if (!document.querySelector('script[data-admin-runtime]')) {
       const admin = document.createElement('script');
-      admin.src = '/admin-runtime.js';
+      admin.src = '/admin-runtime.js?v=hidden-editor-2';
       admin.dataset.adminRuntime = '1';
       document.body.appendChild(admin);
     }
