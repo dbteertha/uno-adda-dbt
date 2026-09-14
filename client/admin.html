@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#080817" />
+  <title>DBT Admin · UNO Adda</title>
+  <style>
+    :root{color-scheme:dark;--bg:#070914;--panel:#111525;--line:#ffffff18;--txt:#f7f8ff;--muted:#9ca6bd;--pink:#ff2f92;--cyan:#41d9ff}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 80% 0,#5b145c55,transparent 32%),radial-gradient(circle at 0 30%,#00679a42,transparent 35%),var(--bg);color:var(--txt);font-family:Inter,system-ui,-apple-system,sans-serif}.shell{width:min(1180px,100%);margin:auto;padding:20px}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:16px}.brand{font-weight:1000;font-size:1.4rem}.brand span{color:var(--cyan)}.status{font-size:.75rem;color:var(--muted)}.card{background:linear-gradient(145deg,#151a2b,#0b0e18);border:1px solid var(--line);border-radius:24px;padding:20px;box-shadow:0 22px 70px #0007;margin-bottom:14px}.login{max-width:460px;margin:12vh auto}.login h1,.editor h1{margin:.2rem 0 .4rem;font-size:clamp(2rem,7vw,4rem);letter-spacing:-.05em}.login p,.muted{color:var(--muted)}input,textarea,select{width:100%;border:1px solid var(--line);background:#080b14;color:#fff;border-radius:13px;padding:12px 13px;font:inherit}textarea{min-height:96px;resize:vertical}button{border:0;border-radius:13px;padding:12px 15px;font-weight:900;cursor:pointer}.primary{background:linear-gradient(135deg,var(--pink),var(--cyan));color:#07101a}.quiet{background:#20263a;color:#fff}.danger{background:#3b1520;color:#ffb5c3}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.wide{grid-column:1/-1}.field{display:grid;gap:6px}.field label{font-size:.72rem;font-weight:900;letter-spacing:.06em;color:#b7c0d4}.switches{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.toggle{display:flex;align-items:center;gap:8px;background:#0d1120;border:1px solid var(--line);border-radius:13px;padding:10px}.toggle input{width:auto}.actions{position:sticky;bottom:10px;display:flex;gap:10px;flex-wrap:wrap;padding:12px;background:#090c15ee;border:1px solid var(--line);border-radius:18px;backdrop-filter:blur(14px);margin-top:14px}.actions .primary{flex:1}.preview{display:flex;gap:9px;align-items:center;color:#aeb8cb;font-size:.8rem}.avatar-row{display:grid;grid-template-columns:80px 1fr 42px;gap:8px;margin-bottom:8px}.avatar-row input:first-child{text-align:center}.section-title{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:4px 0 10px}.section-title h2{margin:0;font-size:1rem}.toast{position:fixed;right:16px;bottom:16px;z-index:99;background:#111827;border:1px solid #ffffff22;border-radius:14px;padding:12px 14px;box-shadow:0 16px 50px #0009;max-width:330px}.hidden{display:none!important}@media(max-width:760px){.shell{padding:10px}.grid{grid-template-columns:1fr}.wide{grid-column:auto}.switches{grid-template-columns:1fr}.top{align-items:flex-start}.actions{bottom:6px}.card{padding:14px;border-radius:18px}}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section id="login" class="card login">
+      <small>DBT GAMES · OWNER ACCESS</small>
+      <h1>Admin Control Center</h1>
+      <p>Edit UNO Adda directly from the website. No GitHub editing required for these settings.</p>
+      <div class="field"><label>ADMIN PASSWORD</label><input id="password" type="password" autocomplete="current-password" placeholder="Enter admin password"></div>
+      <button id="login-btn" class="primary" style="width:100%;margin-top:10px">UNLOCK ADMIN</button>
+    </section>
+
+    <section id="editor" class="editor hidden">
+      <div class="top"><div><div class="brand">DBT <span>ADMIN</span></div><div class="status">Live changes push to connected players instantly.</div></div><button id="logout" class="quiet">Log out</button></div>
+
+      <div class="card">
+        <div class="section-title"><h2>Branding & text</h2><span class="muted">Homepage + UNO hub</span></div>
+        <div class="grid">
+          <div class="field"><label>LAUNCHER TITLE</label><input data-key="launcherTitle"></div>
+          <div class="field"><label>LAUNCHER SUBTITLE</label><input data-key="launcherSubtitle"></div>
+          <div class="field wide"><label>PROMO TITLE</label><input data-key="promoTitle"></div>
+          <div class="field wide"><label>PROMO TEXT</label><textarea data-key="promoText"></textarea></div>
+          <div class="field wide"><label>COLLAB / CONCEPT TEXT</label><textarea data-key="collaborationText"></textarea></div>
+          <div class="field wide"><label>AWARDS TEXT</label><textarea data-key="awardsText"></textarea></div>
+          <div class="field"><label>ACTIVE ROOMS TITLE</label><input data-key="roomsTitle"></div>
+          <div class="field"><label>USERS TITLE</label><input data-key="usersTitle"></div>
+          <div class="field"><label>COMMENTATOR NAME</label><input data-key="commentatorName"></div>
+          <div class="field"><label>CREATE ROOM BUTTON</label><input data-key="createButton"></div>
+          <div class="field"><label>BOT BUTTON</label><input data-key="botButton"></div>
+          <div class="field"><label>JOIN BUTTON</label><input data-key="joinButton"></div>
+          <div class="field wide"><label>LIVE ANNOUNCEMENT BAR</label><textarea data-key="announcement" placeholder="Leave blank to hide"></textarea></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title"><h2>Visibility & features</h2><span class="muted">Turn sections on/off</span></div>
+        <div class="switches">
+          <label class="toggle"><input type="checkbox" data-key="showPromo"> Promo card</label>
+          <label class="toggle"><input type="checkbox" data-key="showRooms"> Active rooms</label>
+          <label class="toggle"><input type="checkbox" data-key="showSuggestedUsers"> Suggested users</label>
+          <label class="toggle"><input type="checkbox" data-key="showCommentary"> Live commentary</label>
+          <label class="toggle"><input type="checkbox" data-key="simulatedHype"> Simulated hype meter</label>
+          <label class="toggle"><input type="checkbox" data-key="transitionSound"> UNO entry sound</label>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title"><h2>Theme</h2><span class="muted">Instant visual controls</span></div>
+        <div class="grid">
+          <div class="field"><label>PRIMARY ACCENT</label><input type="color" data-key="accent"></div>
+          <div class="field"><label>SECONDARY ACCENT</label><input type="color" data-key="accent2"></div>
+          <div class="field"><label>BACKGROUND</label><input type="color" data-key="background"></div>
+          <div class="field wide"><label>CUSTOM CSS · ADVANCED</label><textarea data-key="customCSS" style="min-height:180px;font-family:ui-monospace,monospace" placeholder="Example: .featured-copy h1{font-size:6rem}"></textarea></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title"><h2>Avatar presets</h2><button id="add-avatar" class="quiet">+ Add avatar</button></div>
+        <div id="avatar-list"></div>
+      </div>
+
+      <div class="actions">
+        <div class="preview">Changes are saved to the live server and broadcast instantly.</div>
+        <button id="reload" class="quiet">Reload saved</button>
+        <button id="save" class="primary">SAVE & PUBLISH LIVE</button>
+      </div>
+    </section>
+  </main>
+  <div id="toast" class="toast hidden"></div>
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const toast = (msg, bad=false) => { const el=$('#toast'); el.textContent=msg; el.style.borderColor=bad?'#ff5577':'#41d9ff'; el.classList.remove('hidden'); clearTimeout(toast.t); toast.t=setTimeout(()=>el.classList.add('hidden'),2800); };
+  let current = null;
+
+  async function request(url, options={}) {
+    const r = await fetch(url, { cache:'no-store', headers:{'Content-Type':'application/json', ...(options.headers||{})}, ...options });
+    const body = await r.json().catch(()=>({}));
+    if (!r.ok) throw Error(body.error || 'Request failed');
+    return body;
+  }
+
+  function row(item={icon:'🎮',label:'Player'}) {
+    const wrap=document.createElement('div'); wrap.className='avatar-row';
+    const icon=document.createElement('input'); icon.value=item.icon||'🎮'; icon.maxLength=8; icon.className='avatar-icon';
+    const label=document.createElement('input'); label.value=item.label||'Player'; label.maxLength=40; label.className='avatar-label';
+    const del=document.createElement('button'); del.className='danger'; del.textContent='×'; del.onclick=()=>wrap.remove();
+    wrap.append(icon,label,del); return wrap;
+  }
+
+  function fill(config) {
+    current=config;
+    document.querySelectorAll('[data-key]').forEach((el) => {
+      const key=el.dataset.key;
+      if (el.type==='checkbox') el.checked=!!config[key]; else el.value=config[key] ?? '';
+    });
+    const list=$('#avatar-list'); list.innerHTML=''; (config.avatars||[]).forEach((x)=>list.appendChild(row(x)));
+  }
+
+  function collect() {
+    const out={...(current||{})};
+    document.querySelectorAll('[data-key]').forEach((el) => { out[el.dataset.key]=el.type==='checkbox'?el.checked:el.value; });
+    out.avatars=[...document.querySelectorAll('.avatar-row')].map((r)=>({icon:r.querySelector('.avatar-icon').value.trim()||'🎮',label:r.querySelector('.avatar-label').value.trim()||'Player'}));
+    return out;
+  }
+
+  async function load() { fill(await request('/api/admin/config')); }
+  async function openEditor() { await request('/api/admin/me'); $('#login').classList.add('hidden'); $('#editor').classList.remove('hidden'); await load(); }
+
+  $('#login-btn').onclick=async()=>{ try{ await request('/api/admin/login',{method:'POST',body:JSON.stringify({password:$('#password').value})}); $('#password').value=''; await openEditor(); toast('Admin unlocked'); }catch(e){toast(e.message,true);} };
+  $('#password').addEventListener('keydown',(e)=>{if(e.key==='Enter')$('#login-btn').click();});
+  $('#save').onclick=async()=>{ try{ const body=await request('/api/admin/config',{method:'PUT',body:JSON.stringify(collect())}); fill(body.config); toast('Saved and published live ✅'); }catch(e){toast(e.message,true);} };
+  $('#reload').onclick=()=>load().then(()=>toast('Reloaded saved config')).catch((e)=>toast(e.message,true));
+  $('#add-avatar').onclick=()=>$('#avatar-list').appendChild(row());
+  $('#logout').onclick=async()=>{try{await request('/api/admin/logout',{method:'POST',body:'{}'});}catch{} location.reload();};
+  openEditor().catch(()=>{});
+})();
+</script>
+</body>
+</html>
