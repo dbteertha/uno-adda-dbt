@@ -29,8 +29,12 @@ export function registerClassicPowers(io: Server, rooms: Map<string, GameRoom>) 
     if (meta.passGuardInstalled) return;
     const originalPass = room.pass.bind(room);
     room.pass = ((token: string) => {
-      if (!room.state.drawnCardPlayable) {
-        throw Error("PASS শুধু তখনই করা যাবে যখন draw করার পর তোলা card-টা color / number / action দিয়ে playable হয়।");
+      const player = room.player(token);
+      const hasApplicable = room.state.drawnCardPlayable
+        ? room.legal(token, room.state.drawnCardPlayable)
+        : player.hand.some((card) => room.legal(token, card));
+      if (!hasApplicable) {
+        throw Error("PASS শুধু তখনই করা যাবে যখন তোমার কাছে current color / number / action-এর applicable card আছে।");
       }
       originalPass(token);
     }) as GameRoom["pass"];
@@ -108,6 +112,7 @@ export function registerClassicPowers(io: Server, rooms: Map<string, GameRoom>) 
         name: room.player(t).displayName,
         avatar: room.player(t).avatar,
         isBot: !!room.player(t).isBot,
+        connected: room.player(t).connected,
         powerCount: Object.values(meta.powers.get(t) ?? emptyBag()).reduce((a, b) => a + b, 0),
         shieldActive: meta.shielded.has(t),
       })),
