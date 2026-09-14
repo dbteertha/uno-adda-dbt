@@ -16,6 +16,7 @@
   const botButton = document.getElementById('bot-play');
   const nameInput = document.getElementById('name');
   const codeInput = document.getElementById('code');
+  const transition = document.getElementById('uno-transition');
   if (!home || !menu) return;
 
   const deepMatch = location.pathname.match(/^\/room=([A-Z2-9]{4})\/?$/i);
@@ -26,23 +27,13 @@
   let pendingAction = null;
   let bypassClassic = false;
   let pendingDeepJoin = !!deepRoom;
+  let transitionBusy = false;
 
   const notifySafe = (text) => {
     if (typeof notify === 'function') notify(text);
     else alert(text);
   };
-
   const escapeText = (value) => String(value).replace(/[<>&"']/g, '');
-
-  const activePanel = document.createElement('section');
-  activePanel.className = 'active-users-panel';
-  activePanel.innerHTML = `
-    <div class="active-users-head">
-      <div><span class="presence-dot"></span><b>ACTIVE IN UNO ADDA</b></div>
-      <strong id="active-user-count">0 online</strong>
-    </div>
-    <div id="active-user-list" class="active-user-list"><span class="active-empty">Players who enter UNO Adda will appear here.</span></div>`;
-  menu.querySelector('p')?.insertAdjacentElement('afterend', activePanel);
 
   const gate = document.createElement('dialog');
   gate.id = 'name-gate';
@@ -50,7 +41,7 @@
   gate.innerHTML = `
     <div class="mode-kicker">UNO ADDA · PLAYER ENTRY</div>
     <h2>${deepRoom ? 'Join room ' + deepRoom : 'Enter UNO Adda'}</h2>
-    <p>Your name is what other players will see in the waiting room and on the board.</p>
+    <p>Your name is what other players will see in live rooms and on the board.</p>
     <input id="gate-name" maxlength="24" autocomplete="nickname" placeholder="Your name" />
     <button id="gate-continue" type="button">CONTINUE TO UNO ADDA →</button>
     <small>No Google sign-in. Name only.</small>`;
@@ -58,7 +49,7 @@
   const gateInput = document.getElementById('gate-name');
   const savedName = localStorage.getItem('dbt-player-name') || '';
   if (gateInput) gateInput.value = savedName;
-  if (nameInput && savedName) nameInput.value = savedName;
+  if (nameInput) nameInput.value = savedName;
 
   const emitPresence = () => {
     const displayName = (nameInput?.value || localStorage.getItem('dbt-player-name') || '').trim();
@@ -75,6 +66,21 @@
     return true;
   };
 
+  const selectedAvatar = () => {
+    const active = document.querySelector('#avatars .avatar.active');
+    return active?.dataset?.avatar || localStorage.getItem('uno-avatar') || '⚽';
+  };
+  const playerName = () => (nameInput?.value || localStorage.getItem('dbt-player-name') || '').trim();
+  const roomCode = () => (codeInput?.value || '').trim().toUpperCase();
+
+  document.querySelectorAll('#avatars .avatar').forEach((button) => {
+    button.addEventListener('click', () => {
+      document.querySelectorAll('#avatars .avatar').forEach((b) => b.classList.remove('active'));
+      button.classList.add('active');
+      localStorage.setItem('uno-avatar', button.dataset.avatar || '⚽');
+    });
+  });
+
   const activateHome = () => {
     gameOpened = false;
     home.hidden = false;
@@ -84,11 +90,54 @@
     document.body.classList.add('launcher-active');
   };
 
+  const playEntrySound = () => {
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      const ctx = new Ctx();
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.16, ctx.currentTime + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.72);
+      gain.connect(ctx.destination);
+      [110, 164, 246, 369].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        osc.type = i % 2 ? 'triangle' : 'sawtooth';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.075);
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.4, ctx.currentTime + 0.45 + i * 0.05);
+        osc.connect(gain);
+        osc.start(ctx.currentTime + i * 0.075);
+        osc.stop(ctx.currentTime + 0.75);
+      });
+      setTimeout(() => ctx.close().catch(() => {}), 1100);
+    } catch {}
+  };
+
+  const showTransition = (done) => {
+    if (!transition || transitionBusy) return done();
+    transitionBusy = true;
+    transition.hidden = false;
+    transition.classList.remove('out');
+    transition.classList.add('in');
+    playEntrySound();
+    setTimeout(() => {
+      done();
+      transition.classList.add('out');
+      setTimeout(() => {
+        transition.hidden = true;
+        transition.classList.remove('in', 'out');
+        transitionBusy = false;
+      }, 420);
+    }, 780);
+  };
+
   const activateUno = () => {
     const currentName = localStorage.getItem('dbt-player-name') || '';
     if (gateInput) gateInput.value = currentName;
-    gate.showModal();
-    setTimeout(() => gateInput?.focus(), 40);
+    showTransition(() => {
+      gate.showModal();
+      setTimeout(() => gateInput?.focus(), 40);
+    });
   };
 
   const enterUnoMenu = () => {
@@ -126,22 +175,14 @@
     <h2>Choose your UNO</h2>
     <p id="uno-mode-copy">Choose the ruleset for this match.</p>
     <div class="uno-choice-grid">
-      <button id="choose-classic" class="uno-choice classic-choice" type="button">
-        <span class="choice-icon">🎴</span><span class="choice-text"><b>UNO CLASSIC</b><small>Classic table · Devil Card</small></span><span class="choice-arrow">›</span>
-      </button>
+      <button id="choose-classic" class="uno-choice classic-choice" type="button"><span class="choice-icon">🎴</span><span class="choice-text"><b>UNO CLASSIC</b><small>Classic table · Devil · DBT Powers</small></span><span class="choice-arrow">›</span></button>
       <div class="flex-choice-wrap">
-        <button id="choose-flex" class="uno-choice flex-choice" type="button">
-          <span class="choice-icon">⚡</span><span class="choice-text"><b>UNO FLEX</b><small>Power Cards · Flex sides</small></span><span class="choice-arrow">›</span>
-        </button>
+        <button id="choose-flex" class="uno-choice flex-choice" type="button"><span class="choice-icon">⚡</span><span class="choice-text"><b>UNO FLEX</b><small>Official Flex-style power sides</small></span><span class="choice-arrow">›</span></button>
         <button id="open-flex-tutorial" class="tutorial-icon-btn" type="button" aria-label="UNO Flex tutorial" title="UNO Flex tutorial">?</button>
       </div>
     </div>
     <div class="mode-foot">Classic and Flex use different tables and card designs.</div>`;
   document.body.appendChild(picker);
-
-  const selectedAvatar = () => document.querySelector('#avatars .avatar.active')?.textContent?.trim() || localStorage.getItem('uno-avatar') || '😎';
-  const playerName = () => (nameInput?.value || localStorage.getItem('dbt-player-name') || '').trim();
-  const roomCode = () => (codeInput?.value || '').trim().toUpperCase();
 
   const openModePicker = (action) => {
     if (!playerName()) return activateUno();
@@ -201,6 +242,42 @@
     history.replaceState({}, '', `/room=${roomCodeValue}?mode=classic`);
   };
 
+  const joinLiveRoom = (roomCodeValue) => {
+    if (!playerName()) return activateUno();
+    if (codeInput) codeInput.value = roomCodeValue;
+    pendingAction = 'join';
+    runClassic();
+  };
+
+  const renderPresence = ({ users = [], count = 0, rooms = [] } = {}) => {
+    const countEl = document.getElementById('real-online-count');
+    if (countEl) countEl.textContent = String(count);
+
+    const suggested = document.getElementById('suggested-user-list');
+    if (suggested) suggested.innerHTML = users.length
+      ? users.slice(0, 16).map((u) => `<span class="active-user-chip"><i></i>${escapeText(u.name)}</span>`).join('')
+      : '<span class="active-empty">No other named players online yet.</span>';
+
+    const roomList = document.getElementById('room-browser-list');
+    if (!roomList) return;
+    const joinableRooms = rooms.filter((r) => r.joinable);
+    roomList.innerHTML = joinableRooms.length ? joinableRooms.map((room) => `
+      <article class="room-card">
+        <div class="room-card-main"><div><small>ROOM</small><b>${escapeText(room.roomCode)}</b></div><span>${room.players.length}/4</span></div>
+        <div class="room-player-row">${room.players.map((p) => `<span title="${escapeText(p.name)}">${escapeText(p.avatar)} ${escapeText(p.name)}${p.isBot ? ' · BOT' : ''}</span>`).join('')}</div>
+        <button class="room-join-btn" type="button" data-room-code="${escapeText(room.roomCode)}">JOIN →</button>
+      </article>`).join('') : '<div class="room-empty">No open rooms yet. Create the first one 🔥</div>';
+    roomList.querySelectorAll('[data-room-code]').forEach((button) => button.addEventListener('click', () => joinLiveRoom(button.dataset.roomCode)));
+  };
+
+  let hype = 23232 + Math.floor(Math.random() * (34343 - 23232));
+  setInterval(() => {
+    hype += Math.floor(Math.random() * 601) - 300;
+    hype = Math.max(23232, Math.min(34343, hype));
+    const el = document.getElementById('simulated-hype-count');
+    if (el) el.textContent = hype.toLocaleString();
+  }, 1800);
+
   play?.addEventListener('click', activateUno);
   unoTile?.addEventListener('click', activateUno);
   activateHome();
@@ -235,12 +312,7 @@
 
   try {
     socket.on('connect', () => { emitPresence(); if (!gameOpened && !state && !deepRoom) activateHome(); });
-    socket.on('s_presence', ({ users = [], count = 0 } = {}) => {
-      const countEl = document.getElementById('active-user-count');
-      const listEl = document.getElementById('active-user-list');
-      if (countEl) countEl.textContent = `${count} online`;
-      if (listEl) listEl.innerHTML = users.length ? users.slice(0, 12).map((u) => `<span class="active-user-chip"><i></i>${escapeText(u.name)}</span>`).join('') : '<span class="active-empty">No named players online yet.</span>';
-    });
+    socket.on('s_presence', renderPresence);
     socket.on('s_sync_state', (s) => {
       gameOpened = true; home.hidden = true; document.body.classList.remove('launcher-active');
       if (s?.roomCode) ensureClassicShare(s.roomCode);
