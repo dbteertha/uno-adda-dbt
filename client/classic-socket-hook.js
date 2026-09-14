@@ -11,6 +11,12 @@
   window.io = wrapped;
 
   window.addEventListener('load', () => {
+    if (!document.querySelector('script[data-admin-runtime]')) {
+      const admin = document.createElement('script');
+      admin.src = '/admin-runtime.js';
+      admin.dataset.adminRuntime = '1';
+      document.body.appendChild(admin);
+    }
     if (!window.DBT_CLASSIC_SOCKET || document.querySelector('script[data-mr-bean-commentary]')) return;
     const script = document.createElement('script');
     script.src = '/mr-bean-commentary.js';
