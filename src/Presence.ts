@@ -1,25 +1,40 @@
 import type { Server, Socket } from "socket.io";
 import { z } from "zod";
+import type { GameRoom } from "./GameRoom.js";
 
 const presenceName = z.string().trim().min(1).max(24);
-
 type PresenceEntry = { socketId: string; name: string; updatedAt: number };
 
-export function registerPresence(io: Server) {
+export function registerPresence(io: Server, rooms: Map<string, GameRoom>) {
   const active = new Map<string, PresenceEntry>();
 
-  const publish = () => {
+  const roomList = () => [...rooms.values()]
+    .filter((room) => room.tokens.some((t) => room.player(t).connected || room.player(t).isBot))
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .slice(0, 20)
+    .map((room) => ({
+      roomCode: room.state.roomCode,
+      status: room.state.status,
+      joinable: room.state.status === "LOBBY" && room.tokens.length < 4,
+      players: room.tokens.map((t) => ({
+        name: room.player(t).displayName,
+        avatar: room.player(t).avatar,
+        connected: room.player(t).connected,
+        isBot: !!room.player(t).isBot,
+      })),
+    }));
+
+  const payload = () => {
     const users = [...active.values()]
       .sort((a, b) => b.updatedAt - a.updatedAt)
       .map(({ socketId, name }) => ({ id: socketId, name }));
-    io.emit("s_presence", { users, count: users.length });
+    return { users, count: users.length, rooms: roomList() };
   };
 
+  const publish = () => io.emit("s_presence", payload());
+
   io.on("connection", (socket: Socket) => {
-    socket.emit("s_presence", {
-      users: [...active.values()].sort((a, b) => b.updatedAt - a.updatedAt).map(({ socketId, name }) => ({ id: socketId, name })),
-      count: active.size,
-    });
+    socket.emit("s_presence", payload());
 
     socket.on("c_presence_set", (raw: unknown) => {
       const parsed = z.object({ displayName: presenceName }).strict().safeParse(raw ?? {});
@@ -28,8 +43,16 @@ export function registerPresence(io: Server) {
       publish();
     });
 
+    for (const event of ["c_create_room","c_create_bot_room","c_join_room","c_reconnect","c_toggle_ready","c_leave_room","c_request_rematch"]) {
+      socket.on(event, () => setTimeout(publish, 0));
+    }
+
     socket.on("disconnect", () => {
-      if (active.delete(socket.id)) publish();
+      active.delete(socket.id);
+      publish();
     });
   });
+
+  const ticker = setInterval(publish, 2500);
+  ticker.unref();
 }
