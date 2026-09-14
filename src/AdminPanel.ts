@@ -1,4 +1,3 @@
-import { randomUUID, timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -77,7 +76,6 @@ const DEFAULT_CONFIG: AdminConfig = {
 
 const clientDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../client");
 const configPath = path.join(clientDir, "admin-config.json");
-const sessions = new Map<string, number>();
 
 function cleanString(value: unknown, fallback: string, max = 4000) {
   return typeof value === "string" ? value.slice(0, max) : fallback;
@@ -139,7 +137,7 @@ function normalize(raw: any): AdminConfig {
 export function getAdminConfig(): AdminConfig {
   try {
     if (existsSync(configPath)) return normalize(JSON.parse(readFileSync(configPath, "utf8")));
-  } catch (error) { console.error("[Admin config read]", error); }
+  } catch (error) { console.error("[Editor config read]", error); }
   return { ...DEFAULT_CONFIG, avatars: DEFAULT_CONFIG.avatars.map((x) => ({ ...x })), visualEdits: [] };
 }
 
@@ -152,16 +150,6 @@ function json(res: ServerResponse, status: number, body: unknown) {
   res.setHeader("Cache-Control", "no-store");
   res.end(JSON.stringify(body));
 }
-function tokenFrom(req: IncomingMessage) {
-  const cookie = req.headers.cookie || "";
-  return cookie.split(";").map((x) => x.trim()).find((x) => x.startsWith("dbt_admin="))?.slice(10) || "";
-}
-function authed(req: IncomingMessage) {
-  const token = tokenFrom(req), expiry = sessions.get(token) || 0;
-  if (!token || expiry < Date.now()) { if (token) sessions.delete(token); return false; }
-  sessions.set(token, Date.now() + 12 * 60 * 60 * 1000);
-  return true;
-}
 async function readJson(req: IncomingMessage) {
   const chunks: Buffer[] = []; let total = 0;
   for await (const chunk of req) {
@@ -171,46 +159,46 @@ async function readJson(req: IncomingMessage) {
   }
   return chunks.length ? JSON.parse(Buffer.concat(chunks).toString("utf8")) : {};
 }
-function safePassword(input: string, expected: string) {
-  const a = Buffer.from(input), b = Buffer.from(expected);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
 
 export async function handleAdminRequest(req: IncomingMessage, res: ServerResponse, io: Server): Promise<boolean> {
   const url = new URL(req.url || "/", "http://dbt.local");
-  if (url.pathname === "/api/config" && req.method === "GET") { json(res, 200, getAdminConfig()); return true; }
+
+  if (url.pathname === "/api/config" && req.method === "GET") {
+    json(res, 200, getAdminConfig());
+    return true;
+  }
 
   if (url.pathname === "/admin" && req.method === "GET") {
-    try {
-      res.statusCode = 302; res.setHeader("Location", "/?edit=1"); res.end(); return true;
-    } catch { res.statusCode = 500; res.end("Admin editor unavailable"); return true; }
+    res.statusCode = 302;
+    res.setHeader("Location", "/?edit=1");
+    res.end();
+    return true;
   }
 
-  if (!url.pathname.startsWith("/api/admin/")) return false;
-
-  if (url.pathname === "/api/admin/login" && req.method === "POST") {
-    const expected = process.env.UNO_ADMIN_PASSWORD || "";
-    if (!expected) { json(res, 503, { error: "Admin password is not configured. Set UNO_ADMIN_PASSWORD on Render first." }); return true; }
-    try {
-      const body = await readJson(req); const supplied = String(body?.password || "");
-      if (!safePassword(supplied, expected)) { json(res, 401, { error: "Wrong admin password" }); return true; }
-      const token = randomUUID(); sessions.set(token, Date.now() + 12 * 60 * 60 * 1000);
-      res.setHeader("Set-Cookie", `dbt_admin=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=43200`);
-      json(res, 200, { ok: true }); return true;
-    } catch { json(res, 400, { error: "Invalid request" }); return true; }
+  // Public visual editor by request: anyone using ?edit=1 may edit and save.
+  if (url.pathname === "/api/admin/me" && req.method === "GET") {
+    json(res, 200, { ok: true, publicEditor: true });
+    return true;
   }
-
-  if (!authed(req)) { json(res, 401, { error: "Admin login required" }); return true; }
-  if (url.pathname === "/api/admin/me" && req.method === "GET") { json(res, 200, { ok: true }); return true; }
-  if (url.pathname === "/api/admin/config" && req.method === "GET") { json(res, 200, getAdminConfig()); return true; }
+  if (url.pathname === "/api/admin/config" && req.method === "GET") {
+    json(res, 200, getAdminConfig());
+    return true;
+  }
   if (url.pathname === "/api/admin/config" && req.method === "PUT") {
     try {
-      const config = normalize(await readJson(req)); saveAdminConfig(config); io.emit("s_admin_config", config);
-      json(res, 200, { ok: true, config }); return true;
-    } catch (error) { json(res, 400, { error: error instanceof Error ? error.message : "Unable to save" }); return true; }
+      const config = normalize(await readJson(req));
+      saveAdminConfig(config);
+      io.emit("s_admin_config", config);
+      json(res, 200, { ok: true, config });
+    } catch (error) {
+      json(res, 400, { error: error instanceof Error ? error.message : "Unable to save" });
+    }
+    return true;
   }
-  if (url.pathname === "/api/admin/logout" && req.method === "POST") {
-    sessions.delete(tokenFrom(req)); res.setHeader("Set-Cookie", "dbt_admin=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0"); json(res, 200, { ok: true }); return true;
+
+  if (url.pathname.startsWith("/api/admin/")) {
+    json(res, 404, { error: "Not found" });
+    return true;
   }
-  json(res, 404, { error: "Not found" }); return true;
+  return false;
 }
