@@ -11,6 +11,12 @@
   window.io = wrapped;
 
   window.addEventListener('load', () => {
+    if (!document.querySelector('script[data-admin-lock]')) {
+      const lock = document.createElement('script');
+      lock.src = '/admin-lock.js';
+      lock.dataset.adminLock = '1';
+      document.body.appendChild(lock);
+    }
     if (!document.querySelector('script[data-admin-runtime]')) {
       const admin = document.createElement('script');
       admin.src = '/admin-runtime.js';
