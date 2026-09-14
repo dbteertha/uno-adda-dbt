@@ -66,23 +66,51 @@
     </div>
   </section>
 
+  <div id="uno-transition" class="uno-transition" hidden aria-hidden="true"><div class="uno-transition-logo">UNO<br><span>ADDA</span></div><div class="uno-transition-line"></div></div>
+
   <section id="menu" class="panel hero-panel" hidden>
     <div class="live-pill">🔴 LIVE PARTY TABLE</div>
+    <div class="uno-hype-card">
+      <small>DBT ENTERTAINMENT · PARODY PROMO</small>
+      <h1>UNO ADDA — A MULTIBILLIONAIRE-SCALE PROJECT</h1>
+      <p><b>Dream collab roster:</b> Elon Musk, Lionel Messi, and more — parody/concept only, not actual collaborators or endorsements.</p>
+      <p><b>Award-inspired showcase:</b> The Game Awards · BAFTA Games Awards · Golden Joystick Awards — these are real game awards, not prizes claimed by UNO Adda.</p>
+      <div class="hype-metrics"><span><b id="simulated-hype-count">23,232</b><small>SIMULATED HYPE METER</small></span><span><b id="real-online-count">0</b><small>REAL ACTIVE USERS</small></span></div>
+    </div>
     <h1>কার্ড খেলো, ট্রল দাও,<br><span>স্টেডিয়াম গরম করো 😂</span></h1>
     <p>UNO Adda · Classic অথবা Flex · Bot অথবা Multiplayer</p>
+
+    <section id="room-browser" class="room-browser">
+      <div class="room-browser-head"><div><span class="presence-dot"></span><b>ACTIVE ROOMS</b></div><small>Tap JOIN to enter a live waiting room</small></div>
+      <div id="room-browser-list" class="room-browser-list"><div class="room-empty">No open rooms yet. Create the first one 🔥</div></div>
+    </section>
+
+    <section class="suggested-users">
+      <div class="room-browser-head"><div><span class="presence-dot"></span><b>USERS YOU MAY PLAY WITH</b></div><small>Real connected UNO Adda users</small></div>
+      <div id="suggested-user-list" class="suggested-user-list"><span class="active-empty">Waiting for players…</span></div>
+    </section>
+
     <div class="avatar-block">
-      <label>তোমার অবতার</label>
-      <div id="avatars" class="avatar-picker"><button type="button" class="avatar active">😎</button><button type="button" class="avatar">🤖</button><button type="button" class="avatar">👻</button><button type="button" class="avatar">😈</button><button type="button" class="avatar">🐸</button><button type="button" class="avatar">🐼</button><button type="button" class="avatar">🥷</button><button type="button" class="avatar">👽</button></div>
+      <label>Choose a famous-player avatar preset</label>
+      <div id="avatars" class="avatar-picker celebrity-avatars">
+        <button type="button" class="avatar active" data-avatar="⚽" data-person="Lionel Messi"><span>⚽</span><small>Lionel Messi</small></button>
+        <button type="button" class="avatar" data-avatar="🐐" data-person="Cristiano Ronaldo"><span>🐐</span><small>Cristiano Ronaldo</small></button>
+        <button type="button" class="avatar" data-avatar="🏏" data-person="Shakib Al Hasan"><span>🏏</span><small>Shakib Al Hasan</small></button>
+        <button type="button" class="avatar" data-avatar="👑" data-person="Virat Kohli"><span>👑</span><small>Virat Kohli</small></button>
+        <button type="button" class="avatar" data-avatar="💪" data-person="John Cena"><span>💪</span><small>John Cena</small></button>
+        <button type="button" class="avatar" data-avatar="🪨" data-person="Dwayne Johnson"><span>🪨</span><small>Dwayne Johnson</small></button>
+      </div>
+      <small class="avatar-disclaimer">Fan avatar presets only. No endorsement or affiliation is implied.</small>
     </div>
+
     <form id="create" class="stack">
-      <label for="name">তোমার নাম</label>
-      <input id="name" maxlength="24" autocomplete="nickname" placeholder="যেমন: DBT Boss 😎" required />
+      <input id="name" type="hidden" maxlength="24" autocomplete="nickname" required />
       <button class="primary big" type="submit">নতুন রুম খোলো 🔥</button>
       <button id="bot-play" class="bot-play" type="button">🤖 বট মামার সাথে এখনই খেলি</button>
     </form>
     <div class="divider"><span>অথবা বন্ধুর রুমে ঢুকো</span></div>
     <form id="join" class="join-row"><input id="code" maxlength="4" pattern="[A-Za-z2-9]{4}" placeholder="K7X9" autocomplete="off" required /><button type="submit">ঢুকে পড়ো 😈</button></form>
-    <small class="muted">Create, Join বা Bot চাপার পর UNO Classic / UNO Flex বেছে নাও। Flex হলে পুরো flashcard tutorial আগে দেখাবে।</small>
+    <small class="muted">Your name was already collected at entry. Create, Join or Bot, then choose Classic / Flex.</small>
   </section>
 
   <section id="lobby" class="panel" hidden>
@@ -98,7 +126,7 @@
 
   <section id="board" hidden>
     <div class="table-heading"><div><span id="room-label"></span><span id="round-label"></span></div><div class="table-tools"><button id="history-btn" class="quiet">📊 স্কোর</button><button class="quiet leave">🚪 বের হই</button></div></div>
-    <div id="commentary" class="commentary"><span id="commentator-name" class="commentator">🎙️ LIVE</span><b id="commentary-text">কমেন্টেটর মাইক টেস্ট করছে…</b></div>
+    <div id="commentary" class="commentary"><span id="commentator-name" class="commentator">🎙️ MR BEAN</span><b id="commentary-text">Mr Bean is watching the table…</b></div>
     <section class="arena" aria-label="UNO খেলার টেবিল">
       <div id="disconnect" class="notice" hidden></div><div id="troll-banner" class="troll-banner" hidden></div><div id="devil-flash" class="devil-flash" hidden>😈 DEVIL! এক সেকেন্ডের জন্য গোপন কার্ড দেখা যাচ্ছে!</div>
       <div id="opponent-hands" class="opponent-hands"></div>
