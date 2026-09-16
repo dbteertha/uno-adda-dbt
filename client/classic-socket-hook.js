@@ -18,19 +18,30 @@
       document.body.appendChild(analytics);
     }
 
-    if (!document.querySelector('script[data-cinematic-intro]')) {
+    const loadCinematic = () => {
+      if (document.querySelector('script[data-cinematic-intro]')) return;
       const cinematic = document.createElement('script');
       cinematic.src = '/cinematic-intro.js?v=2';
       cinematic.dataset.cinematicIntro = '1';
       cinematic.onload = () => {
         if (!document.querySelector('script[data-cinematic-professional]')) {
           const professional = document.createElement('script');
-          professional.src = '/cinematic-professional.js?v=1';
+          professional.src = '/cinematic-professional.js?v=2';
           professional.dataset.cinematicProfessional = '1';
           document.body.appendChild(professional);
         }
       };
       document.body.appendChild(cinematic);
+    };
+
+    if (!document.querySelector('script[data-cinematic-flow]')) {
+      const flow = document.createElement('script');
+      flow.src = '/cinematic-flow.js?v=1';
+      flow.dataset.cinematicFlow = '1';
+      flow.onload = loadCinematic;
+      document.body.appendChild(flow);
+    } else {
+      loadCinematic();
     }
 
     if (!document.querySelector('script[data-admin-lock]')) {
