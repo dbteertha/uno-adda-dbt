@@ -12,6 +12,7 @@
   let cleanupTimer = 0;
   let voiceGateTimer = 0;
   let socialGateTimer = 0;
+  let progressionGateTimer = 0;
 
   const LABELS = {
     reverse:['↻','REVERSE'], skip:['⊘','SKIP'], draw2:['+2','DRAW TWO'], draw4:['+4','DRAW FOUR'], wild:['🌈','WILD'], devil:['😈','DEVIL'],
@@ -180,6 +181,27 @@
     if (!window.DBT_SOCIAL_V2 && !socialGateTimer) socialGateTimer = setInterval(attempt, 1000);
   }
 
+  function loadStagingProgressionWhenReady() {
+    const stable = window.DBT_STABILITY;
+    const forced = new URLSearchParams(location.search).get('dbtProgression') === '1';
+    if (!stable || (!onStaging() && !forced)) return;
+    stable.flags.progression = true;
+    const attempt = () => {
+      if (!stable.feature('progression') || window.DBT_PROGRESSION_V1) {
+        if (progressionGateTimer) { clearInterval(progressionGateTimer); progressionGateTimer = 0; }
+        return;
+      }
+      if (!roomReady()) return;
+      if (progressionGateTimer) { clearInterval(progressionGateTimer); progressionGateTimer = 0; }
+      void stable.guardAsync('staging-progression-loader', async () => {
+        await stable.style('premium-progression-css', '/premium-progression.css?v=staging-1', { feature:'progression', selector:'link[data-dbt-progression-css]', dataset:{ dbtProgressionCss:'1' } });
+        await stable.script('premium-progression', '/premium-progression.js?v=staging-1', { feature:'progression', selector:'script[data-dbt-progression]', ready:() => !!window.DBT_PROGRESSION_V1, dataset:{ dbtProgression:'1' } });
+      });
+    };
+    attempt();
+    if (!window.DBT_PROGRESSION_V1 && !progressionGateTimer) progressionGateTimer = setInterval(attempt, 1100);
+  }
+
   function boot() {
     new MutationObserver(onRootEffect).observe(root,{attributes:true,attributeFilter:['data-dbt-effect']});
     observeText(document.getElementById('classic-power-status'),onPowerText);
@@ -209,6 +231,7 @@
     loadStagingAudio();
     loadStagingVoiceWhenReady();
     loadStagingSocialWhenReady();
+    loadStagingProgressionWhenReady();
   }
 
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
