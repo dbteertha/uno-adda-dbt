@@ -1,0 +1,125 @@
+/* DBT Premium Game Feel v1 — shared gameplay motion/effects for Classic + Flex. */
+html.dbt-premium-v1{
+  --dbt-table-calm:#0b3444;
+  --dbt-table-tense:#433017;
+  --dbt-table-final:#4a1524;
+}
+html.dbt-premium-v1[data-dbt-intensity="tense"] .arena,
+html.dbt-premium-v1[data-dbt-intensity="tense"] .flex-table{
+  box-shadow:0 30px 90px #000b,inset 0 0 0 1px #ffffff08,inset 0 0 110px #ffb13a18,0 0 46px #f0ac391b!important;
+}
+html.dbt-premium-v1[data-dbt-intensity="final"] .arena,
+html.dbt-premium-v1[data-dbt-intensity="final"] .flex-table{
+  box-shadow:0 30px 90px #000b,inset 0 0 0 1px #ffffff08,inset 0 0 125px #ff496526,0 0 58px #ff496525!important;
+  animation:dbtTableTension 1.7s ease-in-out infinite;
+}
+@keyframes dbtTableTension{50%{filter:brightness(1.055)}}
+
+html.dbt-premium-v1 #hand{perspective:900px;transform-style:preserve-3d}
+html.dbt-premium-v1 #hand>.uno-card,
+html.dbt-premium-v1 #hand>.flex-card,
+html.dbt-premium-v1 #hand>button{
+  --dbt-fan-r:0deg;
+  --dbt-fan-y:0px;
+  transform:translateY(var(--dbt-fan-y)) rotate(var(--dbt-fan-r));
+  transform-origin:50% 115%;
+  will-change:transform;
+}
+html.dbt-premium-v1 #hand>.uno-card.playable,
+html.dbt-premium-v1 #hand>.flex-card.playable,
+html.dbt-premium-v1 #hand>button.playable{
+  box-shadow:0 0 0 1px #9eeaff55,0 0 28px #54d8ff28,0 16px 30px #0008!important;
+}
+html.dbt-premium-v1 #hand>.uno-card.playable:hover,
+html.dbt-premium-v1 #hand>.flex-card.playable:hover,
+html.dbt-premium-v1 #hand>button.playable:hover{
+  transform:translateY(-14px) rotate(0deg) scale(1.045)!important;
+  filter:brightness(1.08) drop-shadow(0 22px 24px #000a)!important;
+}
+
+html.dbt-premium-v1 .opponent-zone.current,
+html.dbt-premium-v1 .game-players .player.dbt-current-player,
+html.dbt-premium-v1 .my-strip.dbt-current-player,
+html.dbt-premium-v1 .me-strip.dbt-current-player{
+  position:relative;
+  border-color:#76e4ff!important;
+  box-shadow:0 0 0 1px #76e4ff38,0 0 34px #3fcfff2b,inset 0 0 28px #43d4ff0f!important;
+}
+html.dbt-premium-v1 .opponent-zone.current::after,
+html.dbt-premium-v1 .game-players .player.dbt-current-player::after,
+html.dbt-premium-v1 .my-strip.dbt-current-player::after,
+html.dbt-premium-v1 .me-strip.dbt-current-player::after{
+  content:"";position:absolute;inset:-3px;border-radius:inherit;pointer-events:none;border:1px solid #8cecff6b;
+  animation:dbtActiveRing 1.35s ease-in-out infinite;
+}
+@keyframes dbtActiveRing{50%{opacity:.28;transform:scale(1.012)}}
+
+html.dbt-premium-v1 .clock.dbt-clock-hot{
+  color:#ffe06b!important;text-shadow:0 0 18px #ffb52e88;transform:scale(1.035)
+}
+html.dbt-premium-v1 .clock.dbt-clock-critical{
+  color:#ff7284!important;text-shadow:0 0 22px #ff476d99;animation:dbtClockCritical .55s ease-in-out infinite alternate
+}
+@keyframes dbtClockCritical{to{transform:scale(1.09)}}
+
+html.dbt-premium-v1 #colors .color-grid,
+html.dbt-premium-v1 #play-dialog.dbt-color-choice #color-buttons{
+  display:grid!important;grid-template-columns:repeat(2,minmax(110px,1fr));gap:14px;margin:18px auto;max-width:390px
+}
+html.dbt-premium-v1 #colors .color-grid button,
+html.dbt-premium-v1 #play-dialog.dbt-color-choice #color-buttons button{
+  min-height:92px!important;border-radius:22px!important;border:1px solid #ffffff42!important;color:white!important;font-weight:1000!important;font-size:1rem!important;
+  box-shadow:0 16px 30px #0007,inset 0 1px 0 #ffffff4a!important;position:relative;overflow:hidden
+}
+html.dbt-premium-v1 #colors .color-grid button::after,
+html.dbt-premium-v1 #play-dialog.dbt-color-choice #color-buttons button::after{
+  content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 20%,#fff8,transparent 42%);opacity:.22;pointer-events:none
+}
+html.dbt-premium-v1 #colors .RED,
+html.dbt-premium-v1 #play-dialog [data-color="RED"]{background:linear-gradient(145deg,#ff5b70,#b91536)!important}
+html.dbt-premium-v1 #colors .YELLOW,
+html.dbt-premium-v1 #play-dialog [data-color="YELLOW"]{background:linear-gradient(145deg,#ffe765,#d39b16)!important;color:#221904!important}
+html.dbt-premium-v1 #colors .GREEN,
+html.dbt-premium-v1 #play-dialog [data-color="GREEN"]{background:linear-gradient(145deg,#62e895,#16844d)!important}
+html.dbt-premium-v1 #colors .BLUE,
+html.dbt-premium-v1 #play-dialog [data-color="BLUE"]{background:linear-gradient(145deg,#5cb8ff,#1760c2)!important}
+
+.dbt-card-flight{position:fixed!important;margin:0!important;z-index:2147483000!important;pointer-events:none!important;transform-origin:center!important;filter:drop-shadow(0 22px 28px #000b)!important}
+.dbt-draw-arrival{animation:dbtDrawArrival .42s cubic-bezier(.18,.84,.28,1)}
+@keyframes dbtDrawArrival{0%{opacity:.38;filter:brightness(1.4);transform:translateY(-8px) scale(.84)}70%{opacity:1;transform:translateY(2px) scale(1.035)}100%{transform:none}}
+.dbt-deal-in{animation:dbtDealIn .48s cubic-bezier(.16,.85,.26,1) both}
+@keyframes dbtDealIn{0%{opacity:0;transform:translateY(-55px) rotate(-8deg) scale(.72)}65%{opacity:1;transform:translateY(4px) rotate(2deg) scale(1.035)}100%{transform:translateY(var(--dbt-fan-y,0)) rotate(var(--dbt-fan-r,0))}}
+
+html.dbt-premium-v1 .arena.dbt-camera-hit,
+html.dbt-premium-v1 .flex-table.dbt-camera-hit{animation:dbtCameraHit .34s cubic-bezier(.18,.82,.24,1)}
+@keyframes dbtCameraHit{0%{transform:scale(1)}32%{transform:scale(1.012)}100%{transform:scale(1)}}
+
+.dbt-impact-layer{position:fixed;inset:0;z-index:2147482500;pointer-events:none;display:grid;place-items:center;overflow:hidden}
+.dbt-impact-layer::before{content:"";position:absolute;inset:0;opacity:0;animation:dbtImpactFlash .62s ease-out;background:radial-gradient(circle at center,#ffffff35,transparent 46%)}
+.dbt-impact-layer[data-kind="reverse"]::before{background:radial-gradient(circle at center,#65dfff38,transparent 48%)}
+.dbt-impact-layer[data-kind="skip"]::before{background:radial-gradient(circle at center,#ffdd663d,transparent 48%)}
+.dbt-impact-layer[data-kind="draw2"]::before,.dbt-impact-layer[data-kind="draw4"]::before{background:radial-gradient(circle at center,#ff596746,transparent 50%)}
+.dbt-impact-layer[data-kind="wild"]::before{background:conic-gradient(from 0deg at 50% 50%,#ff4b642a,#ffd84c2a,#55e08c2a,#4a9fff2a,#ff4b642a)}
+.dbt-impact-layer[data-kind="devil"]::before{background:radial-gradient(circle at center,#d72cff4a,transparent 50%)}
+@keyframes dbtImpactFlash{0%{opacity:0}16%{opacity:1}100%{opacity:0}}
+.dbt-impact-word{font:1000 clamp(2.4rem,8vw,7rem)/.9 Inter,system-ui,sans-serif;letter-spacing:-.06em;color:white;text-shadow:0 7px 28px #000c;animation:dbtImpactWord .7s cubic-bezier(.14,.78,.24,1) both}
+@keyframes dbtImpactWord{0%{opacity:0;transform:scale(.56) rotate(-5deg)}36%{opacity:1;transform:scale(1.08) rotate(1deg)}100%{opacity:0;transform:scale(1.18)}}
+.dbt-impact-particle{position:absolute;left:50%;top:50%;width:10px;height:42px;border-radius:999px;background:#fff;box-shadow:0 0 16px currentColor;transform-origin:50% 0;animation:dbtParticle .68s ease-out both}
+@keyframes dbtParticle{0%{opacity:0;transform:rotate(var(--r)) translateY(-18px) scaleY(.3)}24%{opacity:1}100%{opacity:0;transform:rotate(var(--r)) translateY(-180px) scaleY(1)}}
+
+html.dbt-premium-v1[data-dbt-effect="wild"] .arena,
+html.dbt-premium-v1[data-dbt-effect="wild"] .flex-table{box-shadow:0 30px 90px #000b,inset 0 0 90px #6cdfff1d,0 0 52px #ff5ab029!important}
+html.dbt-premium-v1[data-dbt-effect="devil"] .arena,
+html.dbt-premium-v1[data-dbt-effect="devil"] .flex-table{box-shadow:0 30px 90px #000b,inset 0 0 110px #a52aff28,0 0 60px #a52aff2c!important}
+
+@media(max-width:720px){
+  html.dbt-premium-v1 #hand>.uno-card,
+  html.dbt-premium-v1 #hand>.flex-card,
+  html.dbt-premium-v1 #hand>button{--dbt-fan-r:0deg!important;--dbt-fan-y:0px!important}
+  html.dbt-premium-v1 #colors .color-grid,
+  html.dbt-premium-v1 #play-dialog.dbt-color-choice #color-buttons{gap:10px}
+  html.dbt-premium-v1 #colors .color-grid button,
+  html.dbt-premium-v1 #play-dialog.dbt-color-choice #color-buttons button{min-height:76px!important;border-radius:18px!important}
+}
+@media(prefers-reduced-motion:reduce){.dbt-impact-layer,.dbt-card-flight{display:none!important}}
+html.dbt-premium-v1.dbt-lite .dbt-impact-particle:nth-of-type(n+6){display:none}
