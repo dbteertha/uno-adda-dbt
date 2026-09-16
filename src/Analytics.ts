@@ -74,12 +74,6 @@ function keyOK(url: URL) {
   const expected = process.env.ANALYTICS_KEY || "";
   return !!expected && url.searchParams.get("key") === expected;
 }
-function cleanOld() {
-  const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
-  if (store.sessions.length > 10_000 || store.sessions.some((s) => s.startedAt < cutoff)) {
-    store.sessions = store.sessions.filter((s) => s.startedAt >= cutoff).slice(-10_000);
-  }
-}
 
 export async function handleAnalyticsRequest(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
   const url = new URL(req.url || "/", "http://dbt.local");
@@ -112,7 +106,7 @@ export async function handleAnalyticsRequest(req: IncomingMessage, res: ServerRe
         const page = str(raw.page, 300); if (page) s.page = page;
       }
       if (raw.event === "end") { s.endedAt = now; s.lastSeenAt = now; }
-      cleanOld(); persist();
+      persist();
       json(res, 200, { ok: true, sessionId: s.id });
     } catch (error) { json(res, 400, { error: error instanceof Error ? error.message : "Analytics error" }); }
     return true;
@@ -121,14 +115,15 @@ export async function handleAnalyticsRequest(req: IncomingMessage, res: ServerRe
   if (url.pathname === "/api/analytics/report" && req.method === "GET") {
     if (!keyOK(url)) { json(res, 403, { error: "Analytics key required" }); return true; }
     const now = Date.now();
-    const rows = [...store.sessions].sort((a,b) => b.lastSeenAt - a.lastSeenAt).slice(0, 1000);
+    const rows = [...store.sessions].sort((a,b) => b.lastSeenAt - a.lastSeenAt);
     const unique = new Set(rows.map((s) => s.visitorId)).size;
     const activeNow = rows.filter((s) => now - s.lastSeenAt < 35_000).length;
     const totalDuration = rows.reduce((n,s) => n + s.durationMs, 0);
+    const firstTrackedAt = rows.length ? Math.min(...rows.map((s) => s.startedAt)) : null;
     json(res, 200, {
-      summary: { sessions: rows.length, uniqueVisitors: unique, activeNow, averageDurationMs: rows.length ? Math.round(totalDuration / rows.length) : 0 },
+      summary: { sessions: rows.length, uniqueVisitors: unique, activeNow, averageDurationMs: rows.length ? Math.round(totalDuration / rows.length) : 0, firstTrackedAt },
       sessions: rows.map(({ ipHash, ...s }) => ({ ...s, active: now - s.lastSeenAt < 35_000 })),
-      note: "Location uses available country headers plus browser timezone. Raw IP addresses are not stored.",
+      note: "All tracked sessions are kept with no 90-day or 10,000-session deletion limit. Tracking only includes visits recorded after analytics was installed. Raw IP addresses are not stored.",
     });
     return true;
   }
