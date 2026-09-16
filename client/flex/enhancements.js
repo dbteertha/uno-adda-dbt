@@ -1,4 +1,18 @@
 (() => {
+  if (!document.querySelector('link[data-premium-core]')) {
+    const premiumCss = document.createElement('link');
+    premiumCss.rel = 'stylesheet';
+    premiumCss.href = '/premium-core.css?v=1';
+    premiumCss.dataset.premiumCore = '1';
+    document.head.appendChild(premiumCss);
+  }
+  if (!document.querySelector('script[data-premium-core]')) {
+    const premium = document.createElement('script');
+    premium.src = '/premium-core.js?v=1';
+    premium.dataset.premiumCore = '1';
+    document.body.appendChild(premium);
+  }
+
   if (!document.querySelector('script[data-analytics]')) {
     const analytics = document.createElement('script');
     analytics.src = '/analytics.js?v=1';
