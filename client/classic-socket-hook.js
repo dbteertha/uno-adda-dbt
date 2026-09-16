@@ -11,6 +11,13 @@
   window.io = wrapped;
 
   window.addEventListener('load', () => {
+    if (!document.querySelector('script[data-cinematic-intro]')) {
+      const cinematic = document.createElement('script');
+      cinematic.src = '/cinematic-intro.js?v=1';
+      cinematic.dataset.cinematicIntro = '1';
+      document.body.appendChild(cinematic);
+    }
+
     if (!document.querySelector('script[data-admin-lock]')) {
       const lock = document.createElement('script');
       lock.src = '/admin-lock.js?v=hidden-editor-5';
