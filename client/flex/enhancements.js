@@ -1,38 +1,9 @@
 (() => {
-  if (!document.querySelector('link[data-reference-photo-theme]')) {
-    const theme = document.createElement('link');
-    theme.rel = 'stylesheet';
-    theme.href = '/photo-reference.css?v=1';
-    theme.dataset.referencePhotoTheme = '1';
-    document.head.appendChild(theme);
-  }
-  if (!document.querySelector('link[data-reference-photo-extra]')) {
-    const extra = document.createElement('link');
-    extra.rel = 'stylesheet';
-    extra.href = '/photo-reference-extra.css?v=1';
-    extra.dataset.referencePhotoExtra = '1';
-    document.head.appendChild(extra);
-  }
-
-  if (!document.querySelector('script[data-reference-photo-layout]')) {
-    const layout = document.createElement('script');
-    layout.src = '/photo-reference.js?v=1';
-    layout.dataset.referencePhotoLayout = '1';
-    document.body.appendChild(layout);
-  }
-
   if (!document.querySelector('script[data-analytics]')) {
     const analytics = document.createElement('script');
     analytics.src = '/analytics.js?v=1';
     analytics.dataset.analytics = '1';
     document.body.appendChild(analytics);
-  }
-
-  if (!document.querySelector('script[data-cat-mascots]')) {
-    const cats = document.createElement('script');
-    cats.src = '/cat-mascots.js?v=3';
-    cats.dataset.catMascots = '1';
-    document.body.appendChild(cats);
   }
 
   const css = document.createElement('link');
