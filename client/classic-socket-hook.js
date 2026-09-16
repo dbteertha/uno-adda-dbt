@@ -51,6 +51,13 @@
       document.body.appendChild(fun);
     }
 
+    if (!document.querySelector('script[data-cat-mascots]')) {
+      const cats = document.createElement('script');
+      cats.src = '/cat-mascots.js?v=1';
+      cats.dataset.catMascots = '1';
+      document.body.appendChild(cats);
+    }
+
     if (!document.querySelector('script[data-admin-lock]')) {
       const lock = document.createElement('script');
       lock.src = '/admin-lock.js?v=hidden-editor-5';
