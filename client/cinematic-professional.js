@@ -16,7 +16,8 @@
     }
     #dbt-cinematic-intro .ci-grid,
     #dbt-cinematic-intro .ci-flare,
-    #dbt-cinematic-intro .ci-scan{
+    #dbt-cinematic-intro .ci-scan,
+    #dbt-cinematic-intro .ci-loading{
       display:none!important;
     }
     #dbt-cinematic-intro .ci-vignette{
@@ -65,14 +66,6 @@
       filter:grayscale(1) contrast(1.15)!important;
       border:1px solid #ffffff33!important;
       box-shadow:0 28px 70px #000!important;
-    }
-    #dbt-cinematic-intro .ci-loading{
-      background:#ffffff18!important;
-      height:2px!important;
-    }
-    #dbt-cinematic-intro .ci-loading:after{
-      background:#fff!important;
-      box-shadow:none!important;
     }
     #dbt-cinematic-intro .ci-final{
       display:none!important;
