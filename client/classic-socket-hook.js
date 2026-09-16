@@ -48,7 +48,7 @@
       cinematic.onload = () => {
         if (!document.querySelector('script[data-cinematic-professional]')) {
           const professional = document.createElement('script');
-          professional.src = '/cinematic-professional.js?v=2';
+          professional.src = '/cinematic-professional.js?v=3';
           professional.dataset.cinematicProfessional = '1';
           document.body.appendChild(professional);
         }
