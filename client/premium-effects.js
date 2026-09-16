@@ -10,6 +10,7 @@
   let lastPowerText = '';
   let lastFlexText = '';
   let cleanupTimer = 0;
+  let voiceGateTimer = 0;
 
   const LABELS = {
     reverse:['↻','REVERSE'], skip:['⊘','SKIP'], draw2:['+2','DRAW TWO'], draw4:['+4','DRAW FOUR'], wild:['🌈','WILD'], devil:['😈','DEVIL'],
@@ -106,15 +107,55 @@
     }).observe(el,{attributes:true,attributeFilter:['hidden','class']});
   }
 
+  function onStaging() {
+    return location.hostname === 'addawithdbt-staging.onrender.com' || new URLSearchParams(location.search).get('dbtStaging') === '1';
+  }
+
   function loadStagingAudio() {
     const stable = window.DBT_STABILITY;
-    const stagingHost = location.hostname === 'addawithdbt-staging.onrender.com';
     const forced = new URLSearchParams(location.search).get('dbtAudio') === '1';
-    if (!stable || (!stagingHost && !forced)) return;
+    if (!stable || (!onStaging() && !forced)) return;
     stable.flags.audio = true;
-    void stable.script('premium-audio', '/premium-audio.js?v=staging-1', {
+    void stable.script('premium-audio', '/premium-audio.js?v=staging-2', {
       feature:'audio', selector:'script[data-dbt-premium-audio]', ready:() => !!window.DBT_AUDIO, dataset:{ dbtPremiumAudio:'1' }
     });
+  }
+
+  function voiceRoomReady() {
+    try {
+      const flexMode = location.pathname.startsWith('/flex') || new URLSearchParams(location.search).get('mode') === 'flex';
+      const raw = localStorage.getItem(flexMode ? 'flex-session' : 'uno-session');
+      const s = raw ? JSON.parse(raw) : null;
+      const token = flexMode ? s?.token : s?.sessionToken;
+      const code = String(s?.roomCode || '').toUpperCase();
+      if (!token || !/^[A-Z2-9]{4}$/.test(code)) return false;
+      const ids = flexMode ? ['lobby','game'] : ['lobby','board'];
+      return ids.some(id => {
+        const el = document.getElementById(id);
+        return !!el && !el.hidden && getComputedStyle(el).display !== 'none';
+      });
+    } catch { return false; }
+  }
+
+  function loadStagingVoiceWhenReady() {
+    const stable = window.DBT_STABILITY;
+    const forced = new URLSearchParams(location.search).get('dbtVoice') === '1';
+    if (!stable || (!onStaging() && !forced)) return;
+    stable.flags.voice = true;
+    const attempt = () => {
+      if (!stable.feature('voice') || window.DBT_VOICE_V2) {
+        if (voiceGateTimer) { clearInterval(voiceGateTimer); voiceGateTimer = 0; }
+        return;
+      }
+      if (!voiceRoomReady()) return;
+      if (voiceGateTimer) { clearInterval(voiceGateTimer); voiceGateTimer = 0; }
+      void stable.guardAsync('staging-voice-loader', async () => {
+        await stable.style('voice-chat-css', '/voice-chat.css?v=staging-2', { feature:'voice', selector:'link[data-dbt-voice-css]', dataset:{ dbtVoiceCss:'1' } });
+        await stable.script('voice-chat', '/voice-chat.js?v=staging-2', { feature:'voice', selector:'script[data-dbt-voice]', ready:() => !!window.DBT_VOICE_V2, dataset:{ dbtVoice:'1' } });
+      });
+    };
+    attempt();
+    if (!window.DBT_VOICE_V2 && !voiceGateTimer) voiceGateTimer = setInterval(attempt, 900);
   }
 
   function boot() {
@@ -144,6 +185,7 @@
     onRootEffect();
     const p=document.getElementById('classic-power-status'); if(p) onPowerText(p.textContent);
     loadStagingAudio();
+    loadStagingVoiceWhenReady();
   }
 
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
