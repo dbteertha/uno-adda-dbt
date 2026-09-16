@@ -7,32 +7,53 @@ import { registerUnoFlex } from "./UnoFlex.js";
 import { registerPresence } from "./Presence.js";
 import { registerClassicPowers } from "./ClassicPowers.js";
 import { handleAdminRequest } from "./AdminPanel.js";
+import { handleAnalyticsRequest } from "./Analytics.js";
 
 const server = createUnoServer();
 registerUnoFlex(server.io);
 registerPresence(server.io, server.rooms);
 registerClassicPowers(server.io, server.rooms);
 
-// Pretty invite links and the protected in-game admin API.
+const clientDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../client");
+
+// Pretty invite links, visual editor API and private analytics dashboard.
 const originalRequestListeners = server.http.listeners("request");
 server.http.removeAllListeners("request");
 server.http.on("request", async (req: IncomingMessage, res: ServerResponse) => {
   try {
+    if (await handleAnalyticsRequest(req, res)) return;
     if (await handleAdminRequest(req, res, server.io)) return;
   } catch (error) {
-    console.error("[DBT admin request]", error);
+    console.error("[DBT request]", error);
     if (!res.headersSent) {
       res.statusCode = 500;
       res.setHeader("Content-Type", "application/json; charset=utf-8");
-      res.end(JSON.stringify({ error: "Admin request failed" }));
+      res.end(JSON.stringify({ error: "Request failed" }));
     }
     return;
   }
 
-  const pathname = new URL(req.url ?? "/", "http://dbt.local").pathname;
+  const url = new URL(req.url ?? "/", "http://dbt.local");
+  const pathname = url.pathname;
+
+  if (pathname === "/analytics") {
+    try {
+      const page = readFileSync(path.join(clientDir, "analytics-dashboard.html"));
+      res.statusCode = 200;
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.setHeader("Cache-Control", "no-store");
+      res.end(page);
+    } catch (error) {
+      console.error("[DBT analytics page]", error);
+      res.statusCode = 500;
+      res.end("Unable to open analytics dashboard.");
+    }
+    return;
+  }
+
   if (/^\/room=[A-Z2-9]{4}\/?$/i.test(pathname)) {
     try {
-      const page = readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../client/index.html"));
+      const page = readFileSync(path.join(clientDir, "index.html"));
       res.statusCode = 200;
       res.setHeader("Content-Type", "text/html; charset=utf-8");
       res.setHeader("Cache-Control", "no-cache");
