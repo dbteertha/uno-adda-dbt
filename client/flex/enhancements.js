@@ -6,6 +6,13 @@
     theme.dataset.referencePhotoTheme = '1';
     document.head.appendChild(theme);
   }
+  if (!document.querySelector('link[data-reference-photo-extra]')) {
+    const extra = document.createElement('link');
+    extra.rel = 'stylesheet';
+    extra.href = '/photo-reference-extra.css?v=1';
+    extra.dataset.referencePhotoExtra = '1';
+    document.head.appendChild(extra);
+  }
 
   if (!document.querySelector('script[data-reference-photo-layout]')) {
     const layout = document.createElement('script');
