@@ -1,4 +1,11 @@
 (() => {
+  if (!document.querySelector('script[data-analytics]')) {
+    const analytics = document.createElement('script');
+    analytics.src = '/analytics.js?v=1';
+    analytics.dataset.analytics = '1';
+    document.body.appendChild(analytics);
+  }
+
   const css = document.createElement('link');
   css.rel = 'stylesheet';
   css.href = '/flex/flex-premium.css';
