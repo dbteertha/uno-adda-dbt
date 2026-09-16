@@ -11,6 +11,7 @@
   let lastFlexText = '';
   let cleanupTimer = 0;
   let voiceGateTimer = 0;
+  let socialGateTimer = 0;
 
   const LABELS = {
     reverse:['↻','REVERSE'], skip:['⊘','SKIP'], draw2:['+2','DRAW TWO'], draw4:['+4','DRAW FOUR'], wild:['🌈','WILD'], devil:['😈','DEVIL'],
@@ -121,7 +122,7 @@
     });
   }
 
-  function voiceRoomReady() {
+  function roomReady() {
     try {
       const flexMode = location.pathname.startsWith('/flex') || new URLSearchParams(location.search).get('mode') === 'flex';
       const raw = localStorage.getItem(flexMode ? 'flex-session' : 'uno-session');
@@ -147,7 +148,7 @@
         if (voiceGateTimer) { clearInterval(voiceGateTimer); voiceGateTimer = 0; }
         return;
       }
-      if (!voiceRoomReady()) return;
+      if (!roomReady()) return;
       if (voiceGateTimer) { clearInterval(voiceGateTimer); voiceGateTimer = 0; }
       void stable.guardAsync('staging-voice-loader', async () => {
         await stable.style('voice-chat-css', '/voice-chat.css?v=staging-2', { feature:'voice', selector:'link[data-dbt-voice-css]', dataset:{ dbtVoiceCss:'1' } });
@@ -156,6 +157,27 @@
     };
     attempt();
     if (!window.DBT_VOICE_V2 && !voiceGateTimer) voiceGateTimer = setInterval(attempt, 900);
+  }
+
+  function loadStagingSocialWhenReady() {
+    const stable = window.DBT_STABILITY;
+    const forced = new URLSearchParams(location.search).get('dbtSocial') === '1';
+    if (!stable || (!onStaging() && !forced)) return;
+    stable.flags.social = true;
+    const attempt = () => {
+      if (!stable.feature('social') || window.DBT_SOCIAL_V2) {
+        if (socialGateTimer) { clearInterval(socialGateTimer); socialGateTimer = 0; }
+        return;
+      }
+      if (!roomReady()) return;
+      if (socialGateTimer) { clearInterval(socialGateTimer); socialGateTimer = 0; }
+      void stable.guardAsync('staging-social-loader', async () => {
+        await stable.style('premium-social-css', '/premium-social.css?v=staging-2', { feature:'social', selector:'link[data-dbt-social-css]', dataset:{ dbtSocialCss:'1' } });
+        await stable.script('premium-social', '/premium-social.js?v=staging-2', { feature:'social', selector:'script[data-dbt-social]', ready:() => !!window.DBT_SOCIAL_V2, dataset:{ dbtSocial:'1' } });
+      });
+    };
+    attempt();
+    if (!window.DBT_SOCIAL_V2 && !socialGateTimer) socialGateTimer = setInterval(attempt, 1000);
   }
 
   function boot() {
@@ -186,6 +208,7 @@
     const p=document.getElementById('classic-power-status'); if(p) onPowerText(p.textContent);
     loadStagingAudio();
     loadStagingVoiceWhenReady();
+    loadStagingSocialWhenReady();
   }
 
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
