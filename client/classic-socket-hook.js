@@ -11,28 +11,6 @@
   window.io = wrapped;
 
   window.addEventListener('load', () => {
-    if (!document.querySelector('link[data-reference-photo-theme]')) {
-      const theme = document.createElement('link');
-      theme.rel = 'stylesheet';
-      theme.href = '/photo-reference.css?v=1';
-      theme.dataset.referencePhotoTheme = '1';
-      document.head.appendChild(theme);
-    }
-    if (!document.querySelector('link[data-reference-photo-extra]')) {
-      const extra = document.createElement('link');
-      extra.rel = 'stylesheet';
-      extra.href = '/photo-reference-extra.css?v=1';
-      extra.dataset.referencePhotoExtra = '1';
-      document.head.appendChild(extra);
-    }
-
-    if (!document.querySelector('script[data-reference-photo-layout]')) {
-      const layout = document.createElement('script');
-      layout.src = '/photo-reference.js?v=1';
-      layout.dataset.referencePhotoLayout = '1';
-      document.body.appendChild(layout);
-    }
-
     if (!document.querySelector('script[data-analytics]')) {
       const analytics = document.createElement('script');
       analytics.src = '/analytics.js?v=1';
@@ -48,7 +26,7 @@
       cinematic.onload = () => {
         if (!document.querySelector('script[data-cinematic-professional]')) {
           const professional = document.createElement('script');
-          professional.src = '/cinematic-professional.js?v=3';
+          professional.src = '/cinematic-professional.js?v=2';
           professional.dataset.cinematicProfessional = '1';
           document.body.appendChild(professional);
         }
@@ -71,13 +49,6 @@
       fun.src = '/fun-mode.js?v=1';
       fun.dataset.funMode = '1';
       document.body.appendChild(fun);
-    }
-
-    if (!document.querySelector('script[data-cat-mascots]')) {
-      const cats = document.createElement('script');
-      cats.src = '/cat-mascots.js?v=3';
-      cats.dataset.catMascots = '1';
-      document.body.appendChild(cats);
     }
 
     if (!document.querySelector('script[data-admin-lock]')) {
@@ -130,7 +101,7 @@
 
     if (!window.DBT_CLASSIC_SOCKET || document.querySelector('script[data-mr-bean-commentary]')) return;
     const script = document.createElement('script');
-    script.src = '/mr-bean-commentary.js?v=2';
+    script.src = '/mr-bean-commentary.js';
     script.dataset.mrBeanCommentary = '1';
     document.body.appendChild(script);
   }, { once: true });
