@@ -20,8 +20,16 @@
 
     if (!document.querySelector('script[data-cinematic-intro]')) {
       const cinematic = document.createElement('script');
-      cinematic.src = '/cinematic-intro.js?v=1';
+      cinematic.src = '/cinematic-intro.js?v=2';
       cinematic.dataset.cinematicIntro = '1';
+      cinematic.onload = () => {
+        if (!document.querySelector('script[data-cinematic-professional]')) {
+          const professional = document.createElement('script');
+          professional.src = '/cinematic-professional.js?v=1';
+          professional.dataset.cinematicProfessional = '1';
+          document.body.appendChild(professional);
+        }
+      };
       document.body.appendChild(cinematic);
     }
 
