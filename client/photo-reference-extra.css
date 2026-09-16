@@ -1,9 +1,0 @@
-/* Finishing details for the approved Misti & Suji reference board */
-[data-reference-title]{position:relative}
-[data-reference-title]::before{content:attr(data-reference-title);display:inline-flex;align-items:center;gap:6px;margin:0 0 8px;padding:4px 8px;border-radius:7px;background:#07182e;border:1px solid #3e83b8;color:#eaf7ff;font:900 10px/1.1 Inter,system-ui,sans-serif;letter-spacing:.04em;box-shadow:0 5px 12px #0005}
-.reference-flex-cats{display:grid;grid-template-columns:92px 1fr 92px;align-items:end;gap:10px;margin:-4px auto 12px;max-width:640px;text-align:center}.reference-flex-cats img{width:92px;height:118px;object-fit:contain;object-position:bottom;filter:drop-shadow(0 10px 14px #0008)}.reference-flex-cats b{display:block;font-size:clamp(1.6rem,5vw,3.4rem);line-height:.9;color:#ffd44c;text-shadow:0 4px 16px #0008}.reference-flex-cats span{display:block;margin-top:7px;color:#80dcff;font-weight:900;letter-spacing:.08em}.reference-flex-cats img:last-child{transform:rotate(3deg)}
-#menu>.cat-scene,#lobby>.cat-scene{margin-top:0!important}.room-browser .cat-scene,.suggested-users .cat-scene{margin-bottom:8px!important}.party-dock .cat-scene{grid-column:1/-1}
-#results .cat-scene{margin-bottom:10px!important}.results-card .cat-scene .scene-character{height:84px}.results-card .cat-scene{min-height:92px}
-#disconnect:not([hidden]){font-weight:900;text-align:center;border-radius:9px;padding:12px;box-shadow:0 0 28px #ff4b6750}.devil-flash:not([hidden]){border-radius:9px;border:1px solid #ff65dc;background:#3a1239;color:#fff;padding:10px;font-weight:950;text-align:center}
-.classic-power-dialog .power-dialog-icon{filter:drop-shadow(0 0 15px #7aa7ff88)}
-@media(max-width:600px){[data-reference-title]::before{font-size:8px;padding:3px 6px}.reference-flex-cats{grid-template-columns:64px 1fr 64px}.reference-flex-cats img{width:64px;height:82px}.reference-flex-cats b{font-size:1.45rem}.reference-flex-cats span{font-size:.68rem}}
