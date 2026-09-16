@@ -53,7 +53,7 @@
 
     if (!document.querySelector('script[data-cat-mascots]')) {
       const cats = document.createElement('script');
-      cats.src = '/cat-mascots.js?v=2';
+      cats.src = '/cat-mascots.js?v=3';
       cats.dataset.catMascots = '1';
       document.body.appendChild(cats);
     }
