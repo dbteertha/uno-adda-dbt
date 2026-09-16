@@ -15,11 +15,32 @@
     document.head.appendChild(feelCss);
   }
 
+  if (!document.querySelector('link[data-premium-effects]')) {
+    const effectsCss = document.createElement('link');
+    effectsCss.rel = 'stylesheet';
+    effectsCss.href = '/premium-effects.css?v=1';
+    effectsCss.dataset.premiumEffects = '1';
+    document.head.appendChild(effectsCss);
+  }
+
+  const loadEffects = () => {
+    if (document.querySelector('script[data-premium-effects]')) return;
+    const effects = document.createElement('script');
+    effects.src = '/premium-effects.js?v=1';
+    effects.dataset.premiumEffects = '1';
+    document.body.appendChild(effects);
+  };
+
   const loadGameFeel = () => {
-    if (document.querySelector('script[data-premium-gamefeel]')) return;
+    if (document.querySelector('script[data-premium-gamefeel]')) {
+      if (window.DBT_GAMEFEEL_V1) loadEffects();
+      else document.querySelector('script[data-premium-gamefeel]')?.addEventListener('load', loadEffects, { once:true });
+      return;
+    }
     const feel = document.createElement('script');
     feel.src = '/premium-gamefeel.js?v=1';
     feel.dataset.premiumGamefeel = '1';
+    feel.onload = loadEffects;
     document.body.appendChild(feel);
   };
 
