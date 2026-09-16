@@ -37,6 +37,7 @@ export type AdminConfig = {
   avatars: Array<{ icon: string; label: string }>;
   customCSS: string;
   visualEdits: VisualEdit[];
+  savedAt: number;
 };
 
 const DEFAULT_CONFIG: AdminConfig = {
@@ -72,6 +73,7 @@ const DEFAULT_CONFIG: AdminConfig = {
   ],
   customCSS: "",
   visualEdits: [],
+  savedAt: 0,
 };
 
 const clientDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../client");
@@ -83,6 +85,10 @@ function cleanString(value: unknown, fallback: string, max = 4000) {
 function cleanBool(value: unknown, fallback: boolean) { return typeof value === "boolean" ? value : fallback; }
 function cleanColor(value: unknown, fallback: string) {
   return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
+}
+function cleanSavedAt(value: unknown) {
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
 }
 function cleanVisualEdits(raw: unknown): VisualEdit[] {
   if (!Array.isArray(raw)) return [];
@@ -131,6 +137,7 @@ function normalize(raw: any): AdminConfig {
     avatars,
     customCSS: cleanString(raw?.customCSS, "", 16000),
     visualEdits: cleanVisualEdits(raw?.visualEdits),
+    savedAt: cleanSavedAt(raw?.savedAt),
   };
 }
 
@@ -175,7 +182,6 @@ export async function handleAdminRequest(req: IncomingMessage, res: ServerRespon
     return true;
   }
 
-  // Public visual editor by request: anyone using ?edit=1 may edit and save.
   if (url.pathname === "/api/admin/me" && req.method === "GET") {
     json(res, 200, { ok: true, publicEditor: true });
     return true;
@@ -186,10 +192,16 @@ export async function handleAdminRequest(req: IncomingMessage, res: ServerRespon
   }
   if (url.pathname === "/api/admin/config" && req.method === "PUT") {
     try {
-      const config = normalize(await readJson(req));
-      saveAdminConfig(config);
-      io.emit("s_admin_config", config);
-      json(res, 200, { ok: true, config });
+      const incoming = normalize(await readJson(req));
+      const current = getAdminConfig();
+      if (incoming.savedAt && current.savedAt && incoming.savedAt < current.savedAt) {
+        json(res, 409, { error: "A newer edit already exists", config: current });
+        return true;
+      }
+      if (!incoming.savedAt) incoming.savedAt = Date.now();
+      saveAdminConfig(incoming);
+      io.emit("s_admin_config", incoming);
+      json(res, 200, { ok: true, config: incoming });
     } catch (error) {
       json(res, 400, { error: error instanceof Error ? error.message : "Unable to save" });
     }
