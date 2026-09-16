@@ -6,6 +6,13 @@
     document.body.appendChild(analytics);
   }
 
+  if (!document.querySelector('script[data-cat-mascots]')) {
+    const cats = document.createElement('script');
+    cats.src = '/cat-mascots.js?v=1';
+    cats.dataset.catMascots = '1';
+    document.body.appendChild(cats);
+  }
+
   const css = document.createElement('link');
   css.rel = 'stylesheet';
   css.href = '/flex/flex-premium.css';
