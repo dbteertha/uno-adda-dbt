@@ -1,0 +1,111 @@
+/* DBT Premium Effects v1 — Phase 3 special-card + power-card presentation. */
+html.dbt-premium-v1{
+  --fx-cyan:#73e9ff;
+  --fx-gold:#ffe275;
+  --fx-red:#ff536d;
+  --fx-purple:#c66cff;
+  --fx-green:#75f2aa;
+}
+
+/* Match atmosphere becomes progressively more cinematic. */
+html.dbt-premium-v1[data-dbt-intensity="tense"] .arena::before,
+html.dbt-premium-v1[data-dbt-intensity="tense"] .flex-table::before,
+html.dbt-premium-v1[data-dbt-intensity="final"] .arena::before,
+html.dbt-premium-v1[data-dbt-intensity="final"] .flex-table::before{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;
+  background:radial-gradient(circle at 50% 48%,transparent 44%,#ffbb4221 78%,#ff7b291b 100%);
+  animation:dbtAmbientBreath 1.9s ease-in-out infinite;
+}
+html.dbt-premium-v1[data-dbt-intensity="final"] .arena::before,
+html.dbt-premium-v1[data-dbt-intensity="final"] .flex-table::before{
+  background:radial-gradient(circle at 50% 48%,transparent 38%,#ff4c682a 74%,#ff254327 100%);
+  animation-duration:1.15s;
+}
+@keyframes dbtAmbientBreath{50%{opacity:.48}}
+
+/* Distinct short-lived table signatures for each action family. */
+html.dbt-premium-v1[data-dbt-effect="reverse"] .arena,
+html.dbt-premium-v1[data-dbt-effect="reverse"] .flex-table{filter:saturate(1.12);box-shadow:0 30px 90px #000b,inset 0 0 95px #4edfff24,0 0 58px #35cfff24!important}
+html.dbt-premium-v1[data-dbt-effect="skip"] .arena,
+html.dbt-premium-v1[data-dbt-effect="skip"] .flex-table{box-shadow:0 30px 90px #000b,inset 0 0 96px #ffe06a24,0 0 54px #ffc63c20!important}
+html.dbt-premium-v1[data-dbt-effect="draw2"] .arena,
+html.dbt-premium-v1[data-dbt-effect="draw2"] .flex-table{box-shadow:0 30px 90px #000b,inset 0 0 100px #ff745c25,0 0 55px #ff5a4722!important}
+html.dbt-premium-v1[data-dbt-effect="draw4"] .arena,
+html.dbt-premium-v1[data-dbt-effect="draw4"] .flex-table{box-shadow:0 30px 90px #000b,inset 0 0 120px #ff4e9f2f,0 0 72px #bc5cff2a!important}
+
+/* Classic power cards. */
+html.dbt-premium-v1[data-dbt-power="magnet"] .arena{box-shadow:0 30px 90px #000b,inset 0 0 120px #4de6ff2c,0 0 70px #35d7ff2b!important}
+html.dbt-premium-v1[data-dbt-power="shield"] .arena{box-shadow:0 30px 90px #000b,inset 0 0 120px #63a9ff32,0 0 76px #4c8cff30!important}
+html.dbt-premium-v1[data-dbt-power="freeze"] .arena{filter:saturate(.82) brightness(1.06);box-shadow:0 30px 90px #000b,inset 0 0 130px #9eeaff36,0 0 82px #7bdcff30!important}
+html.dbt-premium-v1[data-dbt-power="robbery"] .arena{box-shadow:0 30px 90px #000b,inset 0 0 130px #b64cff2f,0 0 78px #b44eff2d!important}
+html.dbt-premium-v1[data-dbt-power="shield"] .me-strip,
+html.dbt-premium-v1 #classic-shield-state:not(:empty){text-shadow:0 0 16px #76b8ffcc}
+
+/* Shared cinematic overlay. */
+.dbt-special-fx{position:fixed;inset:0;z-index:2147483100;pointer-events:none;overflow:hidden;display:grid;place-items:center}
+.dbt-special-fx::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at center,var(--fx-glow,#6ce1ff30),transparent 58%);animation:dbtFxFlash .78s ease-out both}
+@keyframes dbtFxFlash{0%{opacity:0}18%{opacity:1}100%{opacity:0}}
+.dbt-special-emblem{position:relative;display:grid;place-items:center;min-width:132px;min-height:132px;padding:18px;border-radius:999px;border:1px solid #ffffff42;background:#07111ed9;box-shadow:0 0 0 7px #ffffff08,0 24px 80px #000c,0 0 60px var(--fx-glow,#6ce1ff45);backdrop-filter:blur(12px);animation:dbtFxEmblem .82s cubic-bezier(.16,.84,.24,1) both}
+.dbt-special-emblem b{display:block;font:1000 clamp(1.4rem,4.8vw,3.8rem)/.92 system-ui,sans-serif;letter-spacing:-.055em;color:white;text-align:center;text-shadow:0 8px 26px #000b}
+.dbt-special-emblem small{display:block;margin-top:8px;font:900 .68rem/1 system-ui,sans-serif;letter-spacing:.18em;color:#dceeff;text-align:center}
+@keyframes dbtFxEmblem{0%{opacity:0;transform:scale(.5) rotate(-5deg)}35%{opacity:1;transform:scale(1.08) rotate(1deg)}75%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.15)}}
+.dbt-fx-particle{position:absolute;left:50%;top:50%;width:8px;height:70px;border-radius:999px;background:linear-gradient(to bottom,currentColor,transparent);filter:drop-shadow(0 0 8px currentColor);transform-origin:50% 0;animation:dbtFxParticle .86s ease-out both}
+@keyframes dbtFxParticle{0%{opacity:0;transform:rotate(var(--a)) translateY(-38px) scaleY(.15)}22%{opacity:1}100%{opacity:0;transform:rotate(var(--a)) translateY(-260px) scaleY(1)}}
+
+/* Reverse gets actual directional rings. */
+.dbt-special-fx[data-kind="reverse"] .dbt-special-emblem{animation-name:dbtReverseEmblem}
+.dbt-special-fx[data-kind="reverse"]::after{content:"↻";position:absolute;font:1000 min(46vw,360px)/1 system-ui;color:#69e8ff1f;animation:dbtReverseRing .8s ease-out both}
+@keyframes dbtReverseRing{from{opacity:.7;transform:scale(.45) rotate(-160deg)}to{opacity:0;transform:scale(1.35) rotate(110deg)}}
+@keyframes dbtReverseEmblem{0%{opacity:0;transform:scale(.5) rotate(-130deg)}38%{opacity:1;transform:scale(1.08) rotate(12deg)}100%{opacity:0;transform:scale(1.15) rotate(45deg)}}
+
+/* Skip gets a slash-through cue. */
+.dbt-special-fx[data-kind="skip"]::after{content:"";position:absolute;width:min(72vw,620px);height:12px;border-radius:999px;background:linear-gradient(90deg,transparent,#ffe36f,#fff,transparent);box-shadow:0 0 28px #ffd64f;transform:rotate(-18deg);animation:dbtSkipSlash .7s ease-out both}
+@keyframes dbtSkipSlash{0%{opacity:0;transform:translateX(-60vw) rotate(-18deg) scaleX(.4)}35%{opacity:1}100%{opacity:0;transform:translateX(60vw) rotate(-18deg) scaleX(1.1)}}
+
+/* Wild gets a fast chroma halo. */
+.dbt-special-fx[data-kind="wild"]::after{content:"";position:absolute;width:min(74vw,540px);aspect-ratio:1;border-radius:50%;background:conic-gradient(#ff536d,#ffe05f,#72ef9c,#59a8ff,#c469ff,#ff536d);mask:radial-gradient(circle,transparent 54%,#000 56% 63%,transparent 65%);animation:dbtWildHalo .82s ease-out both;filter:blur(.2px) drop-shadow(0 0 18px #fff4)}
+@keyframes dbtWildHalo{0%{opacity:0;transform:scale(.3) rotate(-70deg)}34%{opacity:.85}100%{opacity:0;transform:scale(1.45) rotate(90deg)}}
+
+/* Devil, robbery and draw four feel heavier. */
+.dbt-special-fx[data-kind="devil"] .dbt-special-emblem,
+.dbt-special-fx[data-kind="robbery"] .dbt-special-emblem,
+.dbt-special-fx[data-kind="draw4"] .dbt-special-emblem{box-shadow:0 0 0 7px #ffffff08,0 26px 90px #000e,0 0 86px var(--fx-glow,#d14fff66)}
+
+/* Freeze visually cools the full board for one beat. */
+.dbt-special-fx[data-kind="freeze"]::before{background:linear-gradient(135deg,#c9f7ff2d,#5dc8ff21 48%,transparent 70%);backdrop-filter:saturate(.7)}
+.dbt-special-fx[data-kind="freeze"]::after{content:"❄";position:absolute;font-size:min(60vw,430px);color:#c8f8ff16;animation:dbtFreeze .95s ease-out both}
+@keyframes dbtFreeze{0%{opacity:0;transform:scale(.3) rotate(-16deg)}32%{opacity:1}100%{opacity:0;transform:scale(1.35) rotate(8deg)}}
+
+/* Shield ring and magnet pull line. */
+.dbt-special-fx[data-kind="shield"]::after{content:"";position:absolute;width:min(58vw,420px);aspect-ratio:1;border:3px solid #79b9ff;border-radius:50%;box-shadow:0 0 30px #5fa7ff, inset 0 0 45px #62aaff31;animation:dbtShield .9s ease-out both}
+@keyframes dbtShield{0%{opacity:0;transform:scale(.2)}34%{opacity:.95;transform:scale(1)}100%{opacity:0;transform:scale(1.35)}}
+.dbt-special-fx[data-kind="magnet"]::after{content:"";position:absolute;width:min(78vw,700px);height:3px;background:linear-gradient(90deg,transparent,#61e9ff,#fff,#61e9ff,transparent);box-shadow:0 0 18px #55e5ff;animation:dbtMagnetLine .75s ease-out both}
+@keyframes dbtMagnetLine{0%{opacity:0;transform:scaleX(.1)}35%{opacity:1;transform:scaleX(1)}100%{opacity:0;transform:scaleX(.2)}}
+
+/* Power controls look like actual tactical cards. */
+html.dbt-premium-v1 .classic-power-card{position:relative;overflow:hidden;isolation:isolate}
+html.dbt-premium-v1 .classic-power-card::before{content:"";position:absolute;inset:-40%;z-index:-1;background:conic-gradient(from 180deg,transparent,#68dbff18,transparent 32%);animation:dbtPowerSheen 4s linear infinite}
+html.dbt-premium-v1 .classic-power-card.armed{border-color:#6ce1ff66!important;box-shadow:0 0 0 1px #6ce1ff18,0 12px 34px #0007,0 0 28px #43d4ff17!important}
+html.dbt-premium-v1 .classic-power-card.spent{filter:saturate(.5);opacity:.58}
+@keyframes dbtPowerSheen{to{transform:rotate(360deg)}}
+html.dbt-premium-v1 .robbery-dialog[open]{box-shadow:0 0 0 1px #c36cff55,0 30px 100px #000e,0 0 90px #b94cff29!important}
+html.dbt-premium-v1 #classic-power-target,
+html.dbt-premium-v1 #target{min-height:50px;border-radius:14px;padding-inline:12px}
+
+/* Flex power/challenge moments. */
+html.dbt-premium-v1 .power.on{box-shadow:0 0 22px #69efa22a}
+html.dbt-premium-v1 .power.off{box-shadow:0 0 20px #ff58702a}
+html.dbt-premium-v1 .challenge:not([hidden]){animation:dbtChallengeIn .35s cubic-bezier(.2,.8,.2,1);box-shadow:0 0 0 1px #ff667744,0 18px 54px #000a,0 0 42px #ff586420!important}
+@keyframes dbtChallengeIn{from{opacity:0;transform:translateY(-10px) scale(.98)}to{opacity:1;transform:none}}
+
+@media(max-width:720px){
+  .dbt-special-emblem{min-width:108px;min-height:108px;padding:14px}
+  .dbt-fx-particle{height:50px}
+  html.dbt-premium-v1 .classic-power-card::before{display:none}
+}
+@media(prefers-reduced-motion:reduce){
+  .dbt-special-fx{display:none!important}
+  html.dbt-premium-v1 .classic-power-card::before{display:none!important}
+}
+html.dbt-premium-v1.dbt-lite .dbt-fx-particle:nth-of-type(n+7){display:none}
+html.dbt-premium-v1.dbt-lite .dbt-special-fx::after{filter:none!important}
