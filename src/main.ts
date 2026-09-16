@@ -6,10 +6,18 @@ import { createUnoServer } from "./server.js";
 import { registerUnoFlex } from "./UnoFlex.js";
 import { registerPresence } from "./Presence.js";
 import { registerClassicPowers } from "./ClassicPowers.js";
+import { registerVoiceChat } from "./VoiceChat.js";
 import { handleAdminRequest } from "./AdminPanel.js";
 import { handleAnalyticsRequest } from "./Analytics.js";
 
 const server = createUnoServer();
+// Voice is isolated from gameplay. A voice initialization failure must never block UNO startup.
+try {
+  // Register before Flex so trusted Flex session identities are observed before the Flex handler consumes them.
+  registerVoiceChat(server.io, server.rooms);
+} catch (error) {
+  console.error("[DBT voice init] Voice disabled; gameplay continues.", error);
+}
 registerUnoFlex(server.io);
 registerPresence(server.io, server.rooms);
 registerClassicPowers(server.io, server.rooms);
