@@ -1,4 +1,19 @@
 (() => {
+  if (!document.querySelector('link[data-reference-photo-theme]')) {
+    const theme = document.createElement('link');
+    theme.rel = 'stylesheet';
+    theme.href = '/photo-reference.css?v=1';
+    theme.dataset.referencePhotoTheme = '1';
+    document.head.appendChild(theme);
+  }
+
+  if (!document.querySelector('script[data-reference-photo-layout]')) {
+    const layout = document.createElement('script');
+    layout.src = '/photo-reference.js?v=1';
+    layout.dataset.referencePhotoLayout = '1';
+    document.body.appendChild(layout);
+  }
+
   if (!document.querySelector('script[data-analytics]')) {
     const analytics = document.createElement('script');
     analytics.src = '/analytics.js?v=1';
