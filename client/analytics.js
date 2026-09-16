@@ -1,12 +1,33 @@
 (() => {
   const KEY = 'dbt-visitor-id';
   const SESSION = 'dbt-analytics-session';
+  const ARCHIVE = 'dbt-analytics-archive-v1';
   const visitorId = localStorage.getItem(KEY) || (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
   localStorage.setItem(KEY, visitorId);
   const sessionId = sessionStorage.getItem(SESSION) || (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
   sessionStorage.setItem(SESSION, sessionId);
-  const startedAt = Date.now();
+  const startedAt = Number(sessionStorage.getItem(`${SESSION}-started`)) || Date.now();
+  sessionStorage.setItem(`${SESSION}-started`, String(startedAt));
   let lastSent = 0;
+
+  const readArchive = () => {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(ARCHIVE) || '[]');
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  };
+
+  const writeArchive = (items) => {
+    try { localStorage.setItem(ARCHIVE, JSON.stringify(items.slice(-250))); } catch {}
+  };
+
+  const saveArchive = (entry) => {
+    const items = readArchive();
+    const i = items.findIndex((x) => x && x.sessionId === entry.sessionId);
+    if (i >= 0) items[i] = { ...items[i], ...entry };
+    else items.push(entry);
+    writeArchive(items);
+  };
 
   const payload = (event = 'heartbeat') => ({
     sessionId,
@@ -22,16 +43,31 @@
     event,
   });
 
-  const send = (event = 'heartbeat', beacon = false) => {
-    const data = JSON.stringify(payload(event));
+  const post = (entry, beacon = false) => {
+    const data = JSON.stringify(entry);
     if (beacon && navigator.sendBeacon) {
       navigator.sendBeacon('/api/analytics/session', new Blob([data], { type:'application/json' }));
-      return;
+      return Promise.resolve();
     }
-    fetch('/api/analytics/session', { method:'POST', headers:{'Content-Type':'application/json'}, body:data, keepalive:true }).catch(() => {});
+    return fetch('/api/analytics/session', { method:'POST', headers:{'Content-Type':'application/json'}, body:data, keepalive:true }).catch(() => {});
   };
 
-  send('start');
+  const send = (event = 'heartbeat', beacon = false) => {
+    const entry = payload(event);
+    saveArchive(entry);
+    return post(entry, beacon);
+  };
+
+  // Rehydrate this browser's complete visit history if Render restarted or redeployed.
+  const restoreHistory = async () => {
+    const archived = readArchive();
+    for (const entry of archived.slice(-250)) {
+      if (!entry?.sessionId || !entry?.visitorId) continue;
+      await post({ ...entry, event: entry.event === 'end' ? 'end' : 'heartbeat' });
+    }
+  };
+
+  restoreHistory().finally(() => send('start'));
   setInterval(() => {
     if (document.visibilityState === 'visible') send('heartbeat');
   }, 15000);
