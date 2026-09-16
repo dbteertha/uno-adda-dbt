@@ -15,7 +15,7 @@
     #dbt-cinematic-intro .ci-presents{font-weight:600!important;letter-spacing:.34em!important}
     #dbt-cinematic-intro .ci-title{font-family:Inter,ui-sans-serif,system-ui,sans-serif!important;font-weight:950!important;letter-spacing:-.06em!important}
     #dbt-cinematic-intro .ci-title span{font-weight:750!important;letter-spacing:.34em!important}
-    #dbt-cinematic-intro .ci-tag{color:#d8d8d8!important;font-weight:600!important;letter-spacing:.14em!important}
+    #dbt-cinematic-intro .ci-tag{display:none!important}
 
     #dbt-cinematic-intro .ci-card{filter:none!important;color:#fff!important;border:2px solid rgba(255,255,255,.35)!important;box-shadow:0 24px 70px rgba(0,0,0,.8),inset 0 0 0 3px rgba(255,255,255,.08)!important;text-shadow:0 2px 10px rgba(0,0,0,.4)!important}
     #dbt-cinematic-intro .ci-card.r{background:linear-gradient(145deg,#ff3b4f,#9c0017)!important}
