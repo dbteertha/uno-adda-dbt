@@ -28,15 +28,6 @@
     document.body.appendChild(analytics);
   }
 
-  if (!document.querySelector('script[data-uno-adda-mega]')) {
-    try { sessionStorage.setItem('mg-intro', 'seen'); } catch {}
-    window.__dbtCatMascotsV3 = true;
-    const mega = document.createElement('script');
-    mega.src = '/uno-adda-mega.js?v=1';
-    mega.dataset.unoAddaMega = '1';
-    document.body.appendChild(mega);
-  }
-
   if (!document.querySelector('script[data-cat-mascots]')) {
     const cats = document.createElement('script');
     cats.src = '/cat-mascots.js?v=3';
