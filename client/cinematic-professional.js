@@ -79,6 +79,9 @@
       animation:none!important;
       opacity:0!important;
     }
+    #uno-transition{
+      display:none!important;
+    }
   `;
   document.head.appendChild(style);
 
