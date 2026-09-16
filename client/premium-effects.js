@@ -106,6 +106,17 @@
     }).observe(el,{attributes:true,attributeFilter:['hidden','class']});
   }
 
+  function loadStagingAudio() {
+    const stable = window.DBT_STABILITY;
+    const stagingHost = location.hostname === 'addawithdbt-staging.onrender.com';
+    const forced = new URLSearchParams(location.search).get('dbtAudio') === '1';
+    if (!stable || (!stagingHost && !forced)) return;
+    stable.flags.audio = true;
+    void stable.script('premium-audio', '/premium-audio.js?v=staging-1', {
+      feature:'audio', selector:'script[data-dbt-premium-audio]', ready:() => !!window.DBT_AUDIO, dataset:{ dbtPremiumAudio:'1' }
+    });
+  }
+
   function boot() {
     new MutationObserver(onRootEffect).observe(root,{attributes:true,attributeFilter:['data-dbt-effect']});
     observeText(document.getElementById('classic-power-status'),onPowerText);
@@ -132,6 +143,7 @@
 
     onRootEffect();
     const p=document.getElementById('classic-power-status'); if(p) onPowerText(p.textContent);
+    loadStagingAudio();
   }
 
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
