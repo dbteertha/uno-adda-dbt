@@ -11,6 +11,13 @@
   window.io = wrapped;
 
   window.addEventListener('load', () => {
+    if (!document.querySelector('script[data-analytics]')) {
+      const analytics = document.createElement('script');
+      analytics.src = '/analytics.js?v=1';
+      analytics.dataset.analytics = '1';
+      document.body.appendChild(analytics);
+    }
+
     if (!document.querySelector('script[data-cinematic-intro]')) {
       const cinematic = document.createElement('script');
       cinematic.src = '/cinematic-intro.js?v=1';
