@@ -44,6 +44,13 @@
       loadCinematic();
     }
 
+    if (!document.querySelector('script[data-fun-mode]')) {
+      const fun = document.createElement('script');
+      fun.src = '/fun-mode.js?v=1';
+      fun.dataset.funMode = '1';
+      document.body.appendChild(fun);
+    }
+
     if (!document.querySelector('script[data-admin-lock]')) {
       const lock = document.createElement('script');
       lock.src = '/admin-lock.js?v=hidden-editor-5';
