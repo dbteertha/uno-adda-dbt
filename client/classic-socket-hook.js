@@ -18,11 +18,33 @@
       premiumCss.dataset.premiumCore = '1';
       document.head.appendChild(premiumCss);
     }
+
+    if (!document.querySelector('link[data-premium-gamefeel]')) {
+      const feelCss = document.createElement('link');
+      feelCss.rel = 'stylesheet';
+      feelCss.href = '/premium-gamefeel.css?v=1';
+      feelCss.dataset.premiumGamefeel = '1';
+      document.head.appendChild(feelCss);
+    }
+
+    const loadGameFeel = () => {
+      if (document.querySelector('script[data-premium-gamefeel]')) return;
+      const feel = document.createElement('script');
+      feel.src = '/premium-gamefeel.js?v=1';
+      feel.dataset.premiumGamefeel = '1';
+      document.body.appendChild(feel);
+    };
+
     if (!document.querySelector('script[data-premium-core]')) {
       const premium = document.createElement('script');
       premium.src = '/premium-core.js?v=1';
       premium.dataset.premiumCore = '1';
+      premium.onload = loadGameFeel;
       document.body.appendChild(premium);
+    } else if (window.DBT_UI) {
+      loadGameFeel();
+    } else {
+      document.querySelector('script[data-premium-core]')?.addEventListener('load', loadGameFeel, { once:true });
     }
 
     if (!document.querySelector('script[data-analytics]')) {
