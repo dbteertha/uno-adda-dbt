@@ -1,0 +1,70 @@
+/* DBT accessibility + performance layer. Passive: no gameplay/state mutation. */
+:root{
+  --dbt-safe-top:max(12px,env(safe-area-inset-top));
+  --dbt-safe-right:max(12px,env(safe-area-inset-right));
+  --dbt-safe-bottom:max(12px,env(safe-area-inset-bottom));
+  --dbt-safe-left:max(12px,env(safe-area-inset-left));
+}
+html{scroll-padding-top:var(--dbt-safe-top)}
+body{padding-bottom:env(safe-area-inset-bottom)}
+.topbar,.flex-top{padding-left:var(--dbt-safe-left);padding-right:var(--dbt-safe-right)}
+
+:where(button,a,input,select,textarea,[tabindex]):focus-visible{
+  outline:3px solid #8ee8ff!important;
+  outline-offset:3px!important;
+  box-shadow:0 0 0 2px #07111f,0 0 0 6px rgba(142,232,255,.32)!important;
+}
+
+#dbt-a11y-open{
+  min-width:42px;min-height:42px;border-radius:12px;font-size:18px;line-height:1;
+}
+#dbt-a11y-panel{
+  width:min(92vw,520px);max-height:min(84vh,720px);overflow:auto;border:1px solid rgba(127,225,255,.26);
+  border-radius:22px;background:#081321;color:#eefaff;padding:0;box-shadow:0 28px 90px rgba(0,0,0,.55)
+}
+#dbt-a11y-panel::backdrop{background:rgba(0,6,14,.72);backdrop-filter:blur(5px)}
+.dbt-a11y-inner{padding:22px}
+.dbt-a11y-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:12px}
+.dbt-a11y-head small{display:block;color:#78dfff;font-weight:800;letter-spacing:.12em;margin-bottom:5px}
+.dbt-a11y-head h2{margin:0;font-size:clamp(22px,5vw,30px)}
+.dbt-a11y-close{width:42px;height:42px;border-radius:12px;font-size:24px}
+.dbt-a11y-copy{color:#b8cad8;margin:0 0 16px;line-height:1.5}
+.dbt-a11y-grid{display:grid;gap:10px}
+.dbt-a11y-toggle{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;padding:13px 14px;border:1px solid rgba(255,255,255,.1);border-radius:15px;background:rgba(255,255,255,.035)}
+.dbt-a11y-toggle b{display:block;font-size:14px}.dbt-a11y-toggle small{display:block;margin-top:3px;color:#9cb1c2;line-height:1.35}
+.dbt-a11y-toggle input{width:22px;height:22px;accent-color:#65ddff}
+.dbt-a11y-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:16px}.dbt-a11y-actions button{flex:1;min-width:130px}
+.dbt-a11y-shortcuts{margin-top:17px;padding:12px 14px;border-radius:14px;background:rgba(44,206,255,.07);border:1px solid rgba(91,218,255,.14);font-size:13px;color:#bed4e2;line-height:1.55}
+.dbt-a11y-shortcuts kbd{display:inline-block;min-width:24px;padding:1px 6px;border-radius:6px;background:#15283a;border:1px solid #31516c;color:#fff;text-align:center;font:700 12px/20px ui-monospace,monospace}
+#dbt-a11y-live{position:fixed!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+
+html.dbt-large-text{font-size:112%}
+html.dbt-large-text button,html.dbt-large-text input,html.dbt-large-text select{font-size:1em}
+html.dbt-high-contrast{filter:none}
+html.dbt-high-contrast body{--panel-border:rgba(255,255,255,.38)}
+html.dbt-high-contrast :where(.panel,.arena,.party-box,.room-card,.mode-card,.featured-game,.flex-table){border-color:rgba(255,255,255,.42)!important}
+html.dbt-high-contrast :where(.muted,small,.hint){color:#d8e6ef!important}
+
+html.dbt-color-symbols .RED,html.dbt-color-symbols [data-color="RED"]{background-image:repeating-linear-gradient(45deg,transparent 0 8px,rgba(255,255,255,.22) 8px 11px)!important}
+html.dbt-color-symbols .YELLOW,html.dbt-color-symbols [data-color="YELLOW"]{background-image:radial-gradient(circle at 50% 50%,rgba(0,0,0,.22) 0 2px,transparent 3px)!important;background-size:12px 12px!important}
+html.dbt-color-symbols .GREEN,html.dbt-color-symbols [data-color="GREEN"]{background-image:repeating-linear-gradient(90deg,transparent 0 9px,rgba(255,255,255,.2) 9px 12px)!important}
+html.dbt-color-symbols .BLUE,html.dbt-color-symbols [data-color="BLUE"]{background-image:repeating-linear-gradient(135deg,transparent 0 9px,rgba(255,255,255,.2) 9px 12px)!important}
+
+html.dbt-reduce-motion *,html.dbt-reduce-motion *::before,html.dbt-reduce-motion *::after{
+  animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important
+}
+html.dbt-lite-force :where(.orb,.dbt-fx-particle,.dbt-special-fx i){display:none!important}
+html.dbt-lite-force :where(.panel,.arena,.featured-game,.party-box,#dbt-a11y-panel){backdrop-filter:none!important;box-shadow:none!important}
+html.dbt-lite-force :where(.hero-card,.uno-card,.flex-card){filter:none!important}
+html.dbt-lite-force *{text-shadow:none!important}
+
+html.dbt-offline .network,html.dbt-offline #dbt-reconnect-assist{border-color:#ff8f8f!important}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
+}
+@media (max-width:640px){
+  #dbt-a11y-panel{width:calc(100vw - 18px);max-height:calc(100dvh - 18px)}
+  .dbt-a11y-inner{padding:18px}.dbt-a11y-actions{display:grid;grid-template-columns:1fr}
+  .dbt-a11y-actions button{width:100%}
+}
