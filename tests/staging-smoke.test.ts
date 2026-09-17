@@ -53,10 +53,15 @@ test("premium staging modules stay fail-safe and gameplay-passive", () => {
   assert.doesNotMatch(multiplayer, /\.emit\(\s*["'](?:c_|f_)/, "passive multiplayer memory must not emit gameplay actions");
 });
 
-test("PWA update policy does not force an active-session takeover", () => {
+test("PWA update policy only skips waiting after an explicit apply-update message", () => {
   const sw = read("client/sw.js");
-  assert.doesNotMatch(sw, /self\.skipWaiting\(\)/, "service worker must not force skipWaiting during an active match");
-  assert.match(sw, /cache/i);
+  const install = sw.match(/self\.addEventListener\(['"]install['"][\s\S]*?\n\}\);/)?.[0] ?? "";
+  const message = sw.match(/self\.addEventListener\(['"]message['"][\s\S]*?\n\}\);/)?.[0] ?? "";
+  assert.ok(install, "service-worker install handler missing");
+  assert.doesNotMatch(install, /skipWaiting\s*\(/, "service worker must not force an active-session takeover during install");
+  assert.match(message, /DBT_APPLY_UPDATE/);
+  assert.match(message, /skipWaiting\s*\(/, "explicit apply-update flow should remain available");
+  assert.match(sw, /ignoreSearch\s*:\s*true/, "versioned premium assets must remain available offline");
 });
 
 test("accessibility layer retains reduced-motion and forced-colors support", () => {
@@ -65,4 +70,57 @@ test("accessibility layer retains reduced-motion and forced-colors support", () 
   assert.match(css, /prefers-reduced-motion/);
   assert.match(css, /forced-colors/);
   assert.match(js, /aria-live|announce/i);
+});
+
+test("Classic privacy, safety and competitive services stay registered", () => {
+  const main = read("src/main.ts");
+  const server = read("src/server.ts");
+  assert.match(main, /registerSafetyHub/);
+  assert.match(main, /registerCompetitionHub/);
+  assert.match(main, /premium-safety\.js/);
+  assert.match(main, /premium-competition\.js/);
+  assert.match(server, /RoomVisibility\s*=\s*["']public["']\s*\|\s*["']private["']\s*\|\s*["']invite["']/);
+  assert.match(server, /c_room_privacy/);
+  assert.match(server, /inviteKey/);
+});
+
+test("Arena spectator snapshots never expose hidden hand contents", () => {
+  const arena = read("src/CompetitiveHub.ts");
+  const snapshotBody = arena.match(/function publicSnapshot[\s\S]*?\n}\n\nexport function/)?.[0] ?? "";
+  assert.ok(snapshotBody, "public spectator snapshot builder missing");
+  assert.match(snapshotBody, /cardCount:\s*player\.hand\.length/);
+  assert.doesNotMatch(snapshotBody, /hand:\s*player\.hand/);
+  assert.doesNotMatch(snapshotBody, /myHand/);
+  assert.doesNotMatch(arena, /c_play_card|c_draw_card|c_pass_turn/, "spectator service must not expose gameplay mutation events");
+});
+
+test("competition results are derived from actual Classic room winners", () => {
+  const hub = read("src/CompetitionHub.ts");
+  assert.match(hub, /room\.state\.status\s*!==\s*["']ROUND_OVER["']/);
+  assert.match(hub, /room\.history\[0\]\?\.winnerName/);
+  assert.match(hub, /applyRatedResult/);
+  assert.match(hub, /advanceTournament/);
+  assert.doesNotMatch(hub, /Math\.random\(\).*winner|randomInt\([^\n]*winner/i, "competitive winners must never be random/simulated");
+});
+
+test("Flex invite privacy remains isolated from card-state code", () => {
+  const privacy = read("src/FlexPrivacy.ts");
+  const flex = read("src/UnoFlex.ts");
+  assert.match(privacy, /invite/i);
+  assert.match(privacy, /private|visibility/i);
+  assert.doesNotMatch(privacy, /\.hand\s*=|deck\s*=|discard\s*=/, "privacy helper must not mutate Flex card zones");
+  assert.match(flex, /FLEX_CARD_CONSERVATION/);
+  assert.match(flex, /FLEX_DUPLICATE_CARD/);
+  assert.match(flex, /FLEX_CARD_MUTATED/);
+});
+
+test("bounded replay, report and tournament state prevents unbounded session growth", () => {
+  const arena = read("src/CompetitiveHub.ts");
+  const safety = read("src/SafetyHub.ts");
+  const competition = read("src/CompetitionHub.ts");
+  assert.match(arena, /MAX_REPLAY_ROOMS/);
+  assert.match(arena, /MAX_REPLAY_FRAMES/);
+  assert.match(safety, /reports\.length\s*>\s*500/);
+  assert.match(competition, /rankedMatches\.delete/);
+  assert.match(competition, /tournaments\.delete/);
 });
