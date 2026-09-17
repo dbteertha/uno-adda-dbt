@@ -1,5 +1,5 @@
-const CORE_CACHE='dbt-games-core-v8';
-const RUNTIME_CACHE='dbt-games-runtime-v8';
+const CORE_CACHE='dbt-games-core-v9';
+const RUNTIME_CACHE='dbt-games-runtime-v9';
 const CACHE_PREFIX='dbt-games-';
 const MAX_RUNTIME_ENTRIES=96;
 const CORE=[
@@ -21,8 +21,6 @@ self.addEventListener('install',event=>{
   event.waitUntil((async()=>{
     const cache=await caches.open(CORE_CACHE);
     await Promise.allSettled(CORE.map(url=>cache.add(new Request(url,{cache:'reload'}))));
-    // No automatic skipWaiting: multiplayer tabs keep their current worker until
-    // the user explicitly applies an update or naturally closes/reloads the session.
   })());
 });
 
@@ -53,18 +51,22 @@ async function storeRuntime(request,response){
   await trimRuntime().catch(()=>{});
 }
 
+async function matchCached(request){
+  return (await caches.match(request,{ignoreSearch:true})) || undefined;
+}
+
 async function networkFirst(request,fallback){
   try{
     const response=await fetch(request);
     if(response?.ok) storeRuntime(request,response).catch(()=>{});
     return response;
   }catch{
-    return (await caches.match(request)) || (fallback ? await caches.match(fallback) : undefined) || Response.error();
+    return (await matchCached(request)) || (fallback ? await caches.match(fallback,{ignoreSearch:true}) : undefined) || Response.error();
   }
 }
 
 async function cacheFirst(request){
-  const hit=await caches.match(request);
+  const hit=await matchCached(request);
   if(hit){
     fetch(request).then(response=>{if(response?.ok) storeRuntime(request,response).catch(()=>{});}).catch(()=>{});
     return hit;
