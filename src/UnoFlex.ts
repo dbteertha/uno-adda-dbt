@@ -15,6 +15,7 @@ type CardKind =
   | "WILD_FLEX_ALL_DRAW"
   | "WILD_FLEX_TARGET_DRAW2"
   | "WILD_FLEX_DRAW4";
+type BotStyle = "BALANCED" | "TACTICAL" | "CHAOS";
 
 type Card = {
   id: string;
@@ -34,6 +35,8 @@ type Player = {
   ready: boolean;
   connected: boolean;
   isBot: boolean;
+  botStyle: BotStyle | null;
+  disconnectedAt: number | null;
   powerOn: boolean;
   unoCalled: boolean;
 };
@@ -64,6 +67,7 @@ type Room = {
 };
 
 const COLORS: Color[] = ["RED", "YELLOW", "GREEN", "BLUE"];
+const TAKEOVER_AFTER_MS = 4_000;
 const colorSchema = z.enum(COLORS);
 const nameSchema = z.string().trim().min(1).max(24);
 const avatarSchema = z.string().trim().min(1).max(8);
@@ -130,13 +134,25 @@ function assertIntegrity(room: Room) {
   }
 }
 
+function takeoverReady(p: Player) {
+  return !p.connected && !p.isBot && p.disconnectedAt !== null && Date.now() - p.disconnectedAt >= TAKEOVER_AFTER_MS;
+}
+
+function seatActive(p: Player) {
+  return p.connected || p.isBot || p.disconnectedAt !== null;
+}
+
+function automated(p: Player) {
+  return p.isBot || takeoverReady(p);
+}
+
 function nextIndex(room: Room, steps = 1) {
   const total = room.players.length;
   let idx = room.current;
   for (let n = 0; n < steps; n++) {
     for (let guard = 0; guard < total; guard++) {
       idx = (idx + room.direction + total) % total;
-      if (room.players[idx]?.connected || room.players[idx]?.isBot) break;
+      if (seatActive(room.players[idx])) break;
     }
   }
   return idx;
@@ -161,7 +177,7 @@ function draw(room: Room, p: Player, count: number) {
 }
 
 function resetPowerIfAllOff(room: Room) {
-  const active = room.players.filter((p) => p.connected || p.isBot);
+  const active = room.players.filter(seatActive);
   if (active.length && active.every((p) => !p.powerOn)) {
     for (const p of active) p.powerOn = true;
     room.lastAction = "সব Power Card OFF হয়েছিল — সবাই আবার ON ✅";
@@ -215,14 +231,28 @@ function sync(room: Room, token: string) {
     pendingDraw4: room.pendingDraw4 && room.pendingDraw4.victim === token ? { canChallenge: true } : null,
     lastAction: room.lastAction,
     hand: me.hand.map((c) => ({ ...c, legalSides: room.status === "PLAYING" && room.players[room.current]?.token === token && !room.pendingDraw4 ? legalSides(c, room, me) : [] })),
-    players: room.players.map((p) => ({ token: p.token, name: p.name, avatar: p.avatar, ready: p.ready, connected: p.connected, isBot: p.isBot, cardCount: p.hand.length, powerOn: p.powerOn, unoCalled: p.unoCalled })),
+    players: room.players.map((p) => ({
+      token: p.token,
+      name: p.name,
+      avatar: p.avatar,
+      ready: p.ready,
+      connected: p.connected,
+      isBot: p.isBot,
+      botStyle: p.botStyle,
+      takeover: takeoverReady(p),
+      cardCount: p.hand.length,
+      powerOn: p.powerOn,
+      unoCalled: p.unoCalled,
+    })),
   };
 }
 
 function chooseBotColor(bot: Player) {
   const counts = new Map<Color, number>(COLORS.map((c) => [c, 0]));
   for (const c of bot.hand) if (c.color) counts.set(c.color, (counts.get(c.color) ?? 0) + 1);
-  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? COLORS[randomInt(COLORS.length)];
+  const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  if (bot.botStyle === "CHAOS" && ranked.length > 1 && randomInt(100) < 35) return ranked[randomInt(Math.min(3, ranked.length))][0];
+  return ranked[0]?.[0] ?? COLORS[randomInt(COLORS.length)];
 }
 
 function makeCode(rooms: Map<string, Room>) {
@@ -253,7 +283,7 @@ export function registerUnoFlex(io: Server) {
     const active = room.players.filter((p) => p.connected || p.isBot);
     if (active.length < 2) throw Error("কমপক্ষে ২ জন লাগবে।");
     room.deck = makeDeck(); room.discard = []; room.current = 0; room.direction = 1; room.winner = null; room.pendingDraw4 = null; room.drawnBy = null;
-    for (const p of room.players) { p.hand = []; p.powerOn = true; p.unoCalled = false; for (let i = 0; i < 7; i++) draw(room, p, 1); }
+    for (const p of room.players) { p.hand = []; p.powerOn = true; p.unoCalled = false; p.disconnectedAt = null; for (let i = 0; i < 7; i++) draw(room, p, 1); }
     let starter = drawOne(room);
     while (starter.kind !== "NUMBER") { room.deck.unshift(starter); shuffle(room.deck); starter = drawOne(room); }
     room.discard.push(starter); room.activeColor = starter.color ?? "RED"; room.status = "PLAYING"; room.lastAction = "গেম শুরু — Power Cards ON ✅";
@@ -293,24 +323,24 @@ export function registerUnoFlex(io: Server) {
       case "FLEX_SKIP": flex ? advance(room, room.players.length) : advance(room, 2); break;
       case "FLEX_REVERSE": room.direction = room.direction === 1 ? -1 : 1; advance(room, flex ? 2 : 1); break;
       case "FLEX_DRAW2":
-        if (flex) { for (const other of room.players) if (other.token !== p.token && (other.connected || other.isBot)) draw(room, other, 1); advance(room, 1); }
+        if (flex) { for (const other of room.players) if (other.token !== p.token && seatActive(other)) draw(room, other, 1); advance(room, 1); }
         else { const victim = room.players[nextIndex(room)]; draw(room, victim, 2); advance(room, 2); }
         break;
       case "WILD_ALL_FLIP":
-        for (const other of room.players) if (other.connected || other.isBot) other.powerOn = !other.powerOn;
+        for (const other of room.players) if (seatActive(other)) other.powerOn = !other.powerOn;
         advance(room, 1);
         break;
       case "WILD_FLEX_ALL_DRAW":
-        if (flex) for (const other of room.players) if (other.token !== p.token && (other.connected || other.isBot)) draw(room, other, 2);
+        if (flex) for (const other of room.players) if (other.token !== p.token && seatActive(other)) draw(room, other, 2);
         advance(room, 1);
         break;
       case "WILD_FLEX_TARGET_DRAW2":
-        if (flex) { const target = room.players.find((x) => x.token === targetToken); if (!target || target.token === p.token) throw Error("একজন প্রতিপক্ষ বেছে নাও।"); draw(room, target, 2); }
+        if (flex) { const target = room.players.find((x) => x.token === targetToken); if (!target || target.token === p.token || !seatActive(target)) throw Error("একজন প্রতিপক্ষ বেছে নাও।"); draw(room, target, 2); }
         advance(room, 1);
         break;
       case "WILD_FLEX_DRAW4":
         if (flex) {
-          const target = room.players.find((x) => x.token === targetToken); if (!target || target.token === p.token) throw Error("একজন প্রতিপক্ষ বেছে নাও।");
+          const target = room.players.find((x) => x.token === targetToken); if (!target || target.token === p.token || !seatActive(target)) throw Error("একজন প্রতিপক্ষ বেছে নাও।");
           draw(room, target, 4); advance(room, 1);
         } else {
           const victimIdx = nextIndex(room); const victim = room.players[victimIdx];
@@ -360,33 +390,84 @@ export function registerUnoFlex(io: Server) {
     publish(room);
   }
 
+  function styleOf(p: Player): BotStyle {
+    return p.botStyle ?? "BALANCED";
+  }
+
+  function scoreBotPlay(room: Room, p: Player, c: Card, side: "REGULAR" | "FLEX") {
+    const weights: Record<CardKind, number> = {
+      NUMBER: 1,
+      SKIP: 5.2,
+      REVERSE: 4.1,
+      DRAW2: 6.4,
+      FLEX_SKIP: 6.1,
+      FLEX_REVERSE: 5.5,
+      FLEX_DRAW2: 7,
+      WILD_ALL_FLIP: 5.8,
+      WILD_FLEX_ALL_DRAW: 8.1,
+      WILD_FLEX_TARGET_DRAW2: 7.4,
+      WILD_FLEX_DRAW4: 9.2,
+    };
+    const style = styleOf(p);
+    let score = weights[c.kind] + (c.value ?? 0) * 0.12;
+    if (side === "FLEX") score += style === "CHAOS" ? 3 : style === "TACTICAL" ? 0.8 : 1.8;
+    if (c.color === room.activeColor) score += 0.8;
+    if (style === "TACTICAL" && c.color === null && p.hand.length > 3) score -= 2.5;
+    if (style === "TACTICAL" && c.flipPower && !p.powerOn) score += 2;
+    if (style === "CHAOS" && c.kind.startsWith("WILD_")) score += 2.4;
+    if (style !== "TACTICAL") score += Math.random() * 1.25;
+    return score;
+  }
+
+  function chooseTarget(room: Room, p: Player) {
+    const candidates = room.players.filter((x) => x.token !== p.token && seatActive(x));
+    if (!candidates.length) return undefined;
+    if (styleOf(p) === "TACTICAL") return [...candidates].sort((a, b) => a.hand.length - b.hand.length)[0].token;
+    return candidates[randomInt(candidates.length)].token;
+  }
+
   function botTurn(room: Room, bot: Player) {
-    if (room.status !== "PLAYING" || room.players[room.current]?.token !== bot.token) return;
-    if (room.pendingDraw4?.victim === bot.token) { resolveDraw4(room, bot, false); publish(room); return scheduleBot(room); }
+    if (room.status !== "PLAYING" || room.players[room.current]?.token !== bot.token || !automated(bot)) return;
+    if (room.pendingDraw4?.victim === bot.token) {
+      const style = styleOf(bot);
+      const challengeChance = style === "TACTICAL" ? 58 : style === "BALANCED" ? 34 : 20;
+      resolveDraw4(room, bot, randomInt(100) < challengeChance);
+      publish(room);
+      return scheduleBot(room);
+    }
     const legal: Array<{ c: Card; side: "REGULAR" | "FLEX" }> = [];
     for (const c of bot.hand) for (const side of legalSides(c, room, bot)) legal.push({ c, side });
     if (!legal.length) {
       const drawn = drawOne(room); bot.hand.push(drawn); room.lastAction = `${bot.name} একটি কার্ড তুলেছে`;
       const sides = legalSides(drawn, room, bot);
       if (!sides.length) { advance(room); publish(room); return scheduleBot(room); }
-      const side = sides.includes("REGULAR") ? "REGULAR" : "FLEX";
+      const side = [...sides].sort((a, b) => scoreBotPlay(room, bot, drawn, b) - scoreBotPlay(room, bot, drawn, a))[0];
       const chosen = drawn.color === null ? chooseBotColor(bot) : undefined;
-      const candidates = room.players.filter((x) => x.token !== bot.token && (x.connected || x.isBot));
-      const target = candidates.length ? candidates[randomInt(candidates.length)].token : undefined;
-      return play(room, bot.token, drawn.id, side, chosen, target);
+      return play(room, bot.token, drawn.id, side, chosen, chooseTarget(room, bot));
     }
-    const pick = legal[randomInt(legal.length)];
+    const pick = [...legal].sort((a, b) => scoreBotPlay(room, bot, b.c, b.side) - scoreBotPlay(room, bot, a.c, a.side))[0];
     const chosen = pick.c.color === null ? chooseBotColor(bot) : undefined;
-    const candidates = room.players.filter((x) => x.token !== bot.token && (x.connected || x.isBot));
-    const target = candidates.length ? candidates[randomInt(candidates.length)].token : undefined;
-    play(room, bot.token, pick.c.id, pick.side, chosen, target);
+    play(room, bot.token, pick.c.id, pick.side, chosen, chooseTarget(room, bot));
   }
 
   function scheduleBot(room: Room) {
     if (room.status !== "PLAYING") return;
     const current = room.players[room.current];
-    if (!current?.isBot) return;
-    setTimeout(() => botTurn(room, current), 550 + randomInt(500));
+    if (!current) return;
+    let delay = 0;
+    if (current.isBot) {
+      const style = styleOf(current);
+      delay = style === "CHAOS" ? 360 + randomInt(420) : style === "TACTICAL" ? 720 + randomInt(520) : 540 + randomInt(520);
+    } else if (!current.connected && current.disconnectedAt !== null) {
+      delay = Math.max(250, TAKEOVER_AFTER_MS - (Date.now() - current.disconnectedAt)) + 120;
+    } else return;
+    const token = current.token;
+    setTimeout(() => {
+      const nowCurrent = room.players[room.current];
+      if (nowCurrent?.token !== token) return;
+      try { botTurn(room, nowCurrent); }
+      catch (error) { console.error("[Flex bot/takeover]", error); }
+    }, delay);
   }
 
   const makeRoom = (mode: "BOT" | "MULTI"): Room => ({
@@ -407,7 +488,8 @@ export function registerUnoFlex(io: Server) {
     function attach(room: Room, displayName: string, avatar: string) {
       if (room.status !== "LOBBY") throw Error("এই গেম শুরু হয়ে গেছে।");
       if (room.players.filter((p) => p.connected || p.isBot).length >= 8) throw Error("Room full");
-      const token = randomUUID(); const p: Player = { token, socketId: socket.id, name: displayName, avatar, hand: [], ready: false, connected: true, isBot: false, powerOn: true, unoCalled: false };
+      const token = randomUUID();
+      const p: Player = { token, socketId: socket.id, name: displayName, avatar, hand: [], ready: false, connected: true, isBot: false, botStyle: null, disconnectedAt: null, powerOn: true, unoCalled: false };
       room.players.push(p); sessions.set(socket.id, { room, token }); socket.emit("f_room", { roomCode: room.code, sessionToken: token }); publish(room); return p;
     }
 
@@ -416,8 +498,12 @@ export function registerUnoFlex(io: Server) {
     });
     bind("f_create_bot", z.object({ displayName: nameSchema, avatar: avatarSchema }).strict(), ({ displayName, avatar }) => {
       free(); const room = makeRoom("BOT"); rooms.set(room.code, room); attach(room, displayName, avatar);
-      const bots = [["Flex Bot A","🤖"],["Flex Bot B","😈"],["Flex Bot C","🧠"]] as const;
-      for (const [botName, botAvatar] of bots) room.players.push({ token: randomUUID(), socketId: "", name: botName, avatar: botAvatar, hand: [], ready: true, connected: true, isBot: true, powerOn: true, unoCalled: false });
+      const bots: Array<[string, string, BotStyle]> = [
+        ["Flex Bot A", "🤖", "BALANCED"],
+        ["Flex Bot B", "😈", "CHAOS"],
+        ["Flex Bot C", "🧠", "TACTICAL"],
+      ];
+      for (const [botName, botAvatar, botStyle] of bots) room.players.push({ token: randomUUID(), socketId: "", name: botName, avatar: botAvatar, hand: [], ready: true, connected: true, isBot: true, botStyle, disconnectedAt: null, powerOn: true, unoCalled: false });
       start(room);
     });
     bind("f_join", z.object({ roomCode: codeSchema, displayName: nameSchema, avatar: avatarSchema }).strict(), ({ roomCode, displayName, avatar }) => {
@@ -426,7 +512,9 @@ export function registerUnoFlex(io: Server) {
     bind("f_reconnect", z.object({ roomCode: codeSchema, sessionToken: uuidSchema }).strict(), ({ roomCode, sessionToken }) => {
       free(); const room = rooms.get(roomCode); if (!room) return socket.emit("f_left", {});
       const p = room.players.find((x) => x.token === sessionToken && !x.isBot); if (!p) return socket.emit("f_left", {});
-      sessions.delete(p.socketId); p.socketId = socket.id; p.connected = true; sessions.set(socket.id, { room, token: sessionToken }); publish(room); scheduleBot(room);
+      sessions.delete(p.socketId); p.socketId = socket.id; p.connected = true; p.disconnectedAt = null; sessions.set(socket.id, { room, token: sessionToken });
+      room.lastAction = `${p.name} আবার টেবিলে ফিরেছে ✅`;
+      publish(room); scheduleBot(room);
     });
     bind("f_ready", z.object({ ready: z.boolean() }).strict(), ({ ready }) => { const { room, token } = session(); player(room, token).ready = ready; maybeStart(room); publish(room); });
     bind("f_play", z.object({ cardId: uuidSchema, side: z.enum(["REGULAR","FLEX"]), chosenColor: colorSchema.optional(), targetToken: uuidSchema.optional() }).strict(), (d) => { const { room, token } = session(); play(room, token, d.cardId, d.side, d.chosenColor, d.targetToken); });
@@ -442,10 +530,22 @@ export function registerUnoFlex(io: Server) {
       room.lastAction = `${p.name} PASS দিয়েছে`; advance(room); publish(room); scheduleBot(room);
     });
     bind("f_uno", empty, () => { const { room, token } = session(); const p = player(room, token); if (p.hand.length !== 1) throw Error("UNO বলার সময় এখনো হয়নি।"); p.unoCalled = true; room.lastAction = `${p.name}: UNO! 🚨`; publish(room); });
-    bind("f_catch", empty, () => { const { room, token } = session(); const catcher = player(room, token); const target = room.players.find((p) => p.token !== token && p.hand.length === 1 && !p.unoCalled); if (!target) throw Error("কাউকে catch করা যাচ্ছে না।"); draw(room, target, 2); target.unoCalled = false; room.lastAction = `${catcher.name} ${target.name}-কে UNO catch করেছে — +2`; publish(room); });
+    bind("f_catch", empty, () => { const { room, token } = session(); const catcher = player(room, token); const target = room.players.find((p) => p.token !== token && p.hand.length === 1 && !p.unoCalled && seatActive(p)); if (!target) throw Error("কাউকে catch করা যাচ্ছে না।"); draw(room, target, 2); target.unoCalled = false; room.lastAction = `${catcher.name} ${target.name}-কে UNO catch করেছে — +2`; publish(room); });
     bind("f_draw4", z.object({ challenge: z.boolean() }).strict(), ({ challenge }) => { const { room, token } = session(); const p = player(room, token); resolveDraw4(room, p, challenge); publish(room); scheduleBot(room); });
-    bind("f_leave", empty, () => { const { room, token } = session(); const p = player(room, token); p.connected = false; sessions.delete(socket.id); socket.emit("f_left", {}); if (room.status === "PLAYING") { const alive = room.players.filter((x) => x.connected || x.isBot); if (alive.length === 1) { room.status = "FINISHED"; room.winner = alive[0].token; } } publish(room); });
-    socket.on("disconnect", () => { const s = sessions.get(socket.id); sessions.delete(socket.id); if (!s) return; const p = player(s.room, s.token); p.connected = false; publish(s.room); });
+    bind("f_leave", empty, () => {
+      const { room, token } = session(); const p = player(room, token); p.connected = false; p.disconnectedAt = Date.now(); sessions.delete(socket.id); socket.emit("f_left", {});
+      if (room.status === "PLAYING") {
+        const alive = room.players.filter((x) => x.connected || x.isBot);
+        if (alive.length === 1) { room.status = "FINISHED"; room.winner = alive[0].token; }
+      }
+      publish(room); scheduleBot(room);
+    });
+    socket.on("disconnect", () => {
+      const s = sessions.get(socket.id); sessions.delete(socket.id); if (!s) return;
+      const p = player(s.room, s.token); p.connected = false; p.disconnectedAt = Date.now();
+      s.room.lastAction = `${p.name} reconnecting… AI will hold the seat if needed`;
+      publish(s.room); scheduleBot(s.room);
+    });
   });
 
   const cleanup = setInterval(() => {
