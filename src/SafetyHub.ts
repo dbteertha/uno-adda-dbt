@@ -9,7 +9,7 @@ const reportSchema = z.object({
   note: z.string().trim().max(180).optional().default(""),
 }).strict();
 
-type Report = {
+export type SafetyReport = {
   id: string;
   roomCode: string;
   reporter: string;
@@ -20,7 +20,7 @@ type Report = {
 };
 
 export function registerSafetyHub(io: Server, rooms: Map<string, GameRoom>) {
-  const reports: Report[] = [];
+  const reports: SafetyReport[] = [];
   const recentBySocket = new Map<string, number[]>();
   const recentFingerprint = new Map<string, number>();
 
@@ -57,7 +57,7 @@ export function registerSafetyHub(io: Server, rooms: Map<string, GameRoom>) {
       if (now - (recentFingerprint.get(fingerprint) ?? 0) < 60_000) return socket.emit("s_safety_error", { message: "That report was already submitted recently." });
       recentFingerprint.set(fingerprint, now);
 
-      const report: Report = {
+      const report: SafetyReport = {
         id: `${now.toString(36)}-${Math.random().toString(36).slice(2, 9)}`,
         roomCode: member.room.state.roomCode,
         reporter: member.player.displayName,
@@ -81,5 +81,18 @@ export function registerSafetyHub(io: Server, rooms: Map<string, GameRoom>) {
   }, 30 * 60_000);
   cleanup.unref();
 
-  return { reports, close: () => clearInterval(cleanup) };
+  return {
+    reports,
+    listReports(limit = 100) {
+      const safeLimit = Math.max(1, Math.min(200, Math.floor(limit) || 100));
+      return reports.slice(0, safeLimit).map((report) => ({ ...report }));
+    },
+    resolveReport(id: string) {
+      const index = reports.findIndex((report) => report.id === id);
+      if (index < 0) return false;
+      reports.splice(index, 1);
+      return true;
+    },
+    close: () => clearInterval(cleanup),
+  };
 }
