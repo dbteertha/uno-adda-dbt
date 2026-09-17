@@ -63,6 +63,21 @@ html.dbt-offline .network,html.dbt-offline #dbt-reconnect-assist{border-color:#f
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
 }
+@media (prefers-reduced-transparency:reduce){
+  :where(.panel,.arena,.featured-game,.party-box,#dbt-a11y-panel){backdrop-filter:none!important}
+  #dbt-a11y-panel::backdrop{backdrop-filter:none!important;background:rgba(0,6,14,.94)}
+}
+@media (forced-colors:active){
+  :where(button,a,input,select,textarea,[tabindex]):focus-visible{outline:3px solid Highlight!important;box-shadow:none!important}
+  #dbt-a11y-panel,.dbt-a11y-toggle,.dbt-a11y-shortcuts{border:1px solid CanvasText!important;background:Canvas!important;color:CanvasText!important;forced-color-adjust:auto}
+  .dbt-a11y-copy,.dbt-a11y-toggle small,.dbt-a11y-head small{color:CanvasText!important}
+  .dbt-a11y-shortcuts kbd{border:1px solid CanvasText!important;background:Canvas!important;color:CanvasText!important}
+  html.dbt-color-symbols [data-color],html.dbt-color-symbols .RED,html.dbt-color-symbols .YELLOW,html.dbt-color-symbols .GREEN,html.dbt-color-symbols .BLUE{background-image:none!important;border:2px solid CanvasText!important}
+}
+@media (pointer:coarse){
+  #dbt-a11y-open,.dbt-a11y-close,.dbt-a11y-actions button{min-height:44px}
+  .dbt-a11y-toggle{min-height:48px}
+}
 @media (max-width:640px){
   #dbt-a11y-panel{width:calc(100vw - 18px);max-height:calc(100dvh - 18px)}
   .dbt-a11y-inner{padding:18px}.dbt-a11y-actions{display:grid;grid-template-columns:1fr}
