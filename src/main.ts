@@ -8,6 +8,7 @@ import { registerPresence } from "./Presence.js";
 import { registerClassicPowers } from "./ClassicPowers.js";
 import { registerVoiceChat } from "./VoiceChat.js";
 import { registerReconnectTakeover } from "./ReconnectTakeover.js";
+import { registerCompetitiveHub } from "./CompetitiveHub.js";
 import { handleAdminRequest } from "./AdminPanel.js";
 import { handleAnalyticsRequest } from "./Analytics.js";
 
@@ -21,8 +22,17 @@ registerUnoFlex(server.io);
 registerPresence(server.io, server.rooms, server.roomPrivacy);
 registerClassicPowers(server.io, server.rooms);
 registerReconnectTakeover(server.io, server.rooms);
+const competitiveHub = registerCompetitiveHub(server.io, server.rooms, server.roomPrivacy);
 
 const clientDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../client");
+
+function serveStaticHtml(res: ServerResponse, filename: string) {
+  const page = readFileSync(path.join(clientDir, filename), "utf8");
+  res.statusCode = 200;
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.setHeader("Cache-Control", "no-store");
+  res.end(page);
+}
 
 function serveGamePage(res: ServerResponse, filename: string, flex = false) {
   let page = readFileSync(path.join(clientDir, filename), "utf8");
@@ -63,16 +73,21 @@ server.http.on("request", async (req: IncomingMessage, res: ServerResponse) => {
   const pathname = url.pathname;
 
   if (pathname === "/analytics") {
-    try {
-      const page = readFileSync(path.join(clientDir, "analytics-dashboard.html"));
-      res.statusCode = 200;
-      res.setHeader("Content-Type", "text/html; charset=utf-8");
-      res.setHeader("Cache-Control", "no-store");
-      res.end(page);
-    } catch (error) {
+    try { serveStaticHtml(res, "analytics-dashboard.html"); }
+    catch (error) {
       console.error("[DBT analytics page]", error);
       res.statusCode = 500;
       res.end("Unable to open analytics dashboard.");
+    }
+    return;
+  }
+
+  if (pathname === "/arena" || pathname === "/arena/" || pathname === "/arena.html" || /^\/spectate=[A-Z2-9]{4}\/?$/i.test(pathname)) {
+    try { serveStaticHtml(res, "arena.html"); }
+    catch (error) {
+      console.error("[DBT arena page]", error);
+      res.statusCode = 500;
+      res.end("Unable to open DBT Arena.");
     }
     return;
   }
@@ -117,6 +132,7 @@ server.http.listen(port, "0.0.0.0", () => console.log(`DBT Games server listenin
 
 for (const signal of ["SIGINT", "SIGTERM"]) {
   process.on(signal, () => {
+    competitiveHub.close();
     void server.close().then(() => process.exit(0));
   });
 }
