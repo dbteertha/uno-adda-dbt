@@ -1,7 +1,7 @@
-const CORE_CACHE='dbt-games-core-v10';
-const RUNTIME_CACHE='dbt-games-runtime-v10';
+const CORE_CACHE='dbt-games-core-v11';
+const RUNTIME_CACHE='dbt-games-runtime-v11';
 const CACHE_PREFIX='dbt-games-';
-const MAX_RUNTIME_ENTRIES=104;
+const MAX_RUNTIME_ENTRIES=112;
 const CORE=[
   '/', '/flex/', '/manifest.webmanifest',
   '/style.css','/launcher.css','/flex-home.css','/premium.css','/live-hub.css',
@@ -14,6 +14,7 @@ const CORE=[
   '/premium-reconnect.css','/premium-reconnect.js','/premium-multiplayer-loader.js',
   '/premium-match-story.css','/premium-match-story.js','/premium-modes.css','/premium-modes.js',
   '/premium-weekly-recent.css','/premium-weekly-recent.js','/premium-voice-lab.css','/premium-voice-lab.js',
+  '/premium-room-privacy.css','/premium-room-privacy.js','/premium-captions.css','/premium-captions.js',
   '/voice-chat.css','/voice-chat.js',
   '/flex/flex.css','/flex/flex-premium.css','/flex/socket-hook.js','/flex/flex.js','/flex/enhancements.js',
   '/dbt-app-icon.svg','/dbt-app-icon-maskable.svg'
