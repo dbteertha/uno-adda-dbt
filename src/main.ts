@@ -10,6 +10,7 @@ import { registerVoiceChat } from "./VoiceChat.js";
 import { registerReconnectTakeover } from "./ReconnectTakeover.js";
 import { registerCompetitiveHub } from "./CompetitiveHub.js";
 import { registerSafetyHub } from "./SafetyHub.js";
+import { registerCompetitionHub } from "./CompetitionHub.js";
 import { handleAdminRequest } from "./AdminPanel.js";
 import { handleAnalyticsRequest } from "./Analytics.js";
 
@@ -25,6 +26,7 @@ registerClassicPowers(server.io, server.rooms);
 registerReconnectTakeover(server.io, server.rooms);
 const competitiveHub = registerCompetitiveHub(server.io, server.rooms, server.roomPrivacy);
 const safetyHub = registerSafetyHub(server.io, server.rooms);
+const competitionHub = registerCompetitionHub(server.io, server.rooms);
 
 const clientDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../client");
 
@@ -45,10 +47,10 @@ function serveGamePage(res: ServerResponse, filename: string, flex = false) {
     );
   }
   const flexManifest = flex ? '  <link rel="manifest" href="/manifest.webmanifest" />\n' : "";
-  const classicSafety = flex ? "" : '  <link rel="stylesheet" href="/premium-safety.css?v=staging-1" />\n  <script defer src="/premium-safety.js?v=staging-1"></script>\n';
+  const classicExtras = flex ? "" : '  <link rel="stylesheet" href="/premium-safety.css?v=staging-1" />\n  <script defer src="/premium-safety.js?v=staging-1"></script>\n  <link rel="stylesheet" href="/premium-competition.css?v=staging-1" />\n  <script defer src="/premium-competition.js?v=staging-1"></script>\n';
   page = page.replace(
     "</head>",
-    `${flexManifest}  <link rel="stylesheet" href="/premium-accessibility.css?v=staging-1" />\n  <script defer src="/premium-accessibility.js?v=staging-1"></script>\n  <link rel="stylesheet" href="/premium-reconnect.css?v=staging-1" />\n  <script defer src="/premium-reconnect.js?v=staging-1"></script>\n  <script defer src="/premium-multiplayer-loader.js?v=staging-1"></script>\n  <link rel="stylesheet" href="/premium-match-story.css?v=staging-1" />\n  <script defer src="/premium-match-story.js?v=staging-1"></script>\n  <link rel="stylesheet" href="/premium-modes.css?v=staging-1" />\n  <script defer src="/premium-modes.js?v=staging-1"></script>\n  <link rel="stylesheet" href="/premium-weekly-recent.css?v=staging-1" />\n  <script defer src="/premium-weekly-recent.js?v=staging-1"></script>\n  <link rel="stylesheet" href="/premium-voice-lab.css?v=staging-1" />\n  <script defer src="/premium-voice-lab.js?v=staging-1"></script>\n  <link rel="stylesheet" href="/premium-audio-mixer.css?v=staging-1" />\n  <script defer src="/premium-audio-mixer.js?v=staging-1"></script>\n  <link rel="stylesheet" href="/premium-room-privacy.css?v=staging-1" />\n  <script defer src="/premium-room-privacy.js?v=staging-1"></script>\n  <link rel="stylesheet" href="/premium-captions.css?v=staging-1" />\n  <script defer src="/premium-captions.js?v=staging-1"></script>\n  <link rel="stylesheet" href="/premium-diagnostics.css?v=staging-1" />\n  <script defer src="/premium-diagnostics.js?v=staging-1"></script>\n${classicSafety}</head>`,
+    `${flexManifest}  <link rel="stylesheet" href="/premium-accessibility.css?v=staging-1" />\n  <script defer src="/premium-accessibility.js?v=staging-1"></script>\n  <link rel="stylesheet" href="/premium-reconnect.css?v=staging-1" />\n  <script defer src="/premium-reconnect.js?v=staging-1"></script>\n  <script defer src="/premium-multiplayer-loader.js?v=staging-1"></script>\n  <link rel="stylesheet" href="/premium-match-story.css?v=staging-1" />\n  <script defer src="/premium-match-story.js?v=staging-1"></script>\n  <link rel="stylesheet" href="/premium-modes.css?v=staging-1" />\n  <script defer src="/premium-modes.js?v=staging-1"></script>\n  <link rel="stylesheet" href="/premium-weekly-recent.css?v=staging-1" />\n  <script defer src="/premium-weekly-recent.js?v=staging-1"></script>\n  <link rel="stylesheet" href="/premium-voice-lab.css?v=staging-1" />\n  <script defer src="/premium-voice-lab.js?v=staging-1"></script>\n  <link rel="stylesheet" href="/premium-audio-mixer.css?v=staging-1" />\n  <script defer src="/premium-audio-mixer.js?v=staging-1"></script>\n  <link rel="stylesheet" href="/premium-room-privacy.css?v=staging-1" />\n  <script defer src="/premium-room-privacy.js?v=staging-1"></script>\n  <link rel="stylesheet" href="/premium-captions.css?v=staging-1" />\n  <script defer src="/premium-captions.js?v=staging-1"></script>\n  <link rel="stylesheet" href="/premium-diagnostics.css?v=staging-1" />\n  <script defer src="/premium-diagnostics.js?v=staging-1"></script>\n${classicExtras}</head>`,
   );
   res.statusCode = 200;
   res.setHeader("Content-Type", "text/html; charset=utf-8");
@@ -137,6 +139,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
   process.on(signal, () => {
     competitiveHub.close();
     safetyHub.close();
+    competitionHub.close();
     void server.close().then(() => process.exit(0));
   });
 }
