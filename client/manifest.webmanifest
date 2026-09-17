@@ -1,1 +1,23 @@
-{"name":"UNO আড্ডা · Made by DBT","short_name":"UNO আড্ডা","start_url":"/","display":"standalone","background_color":"#10131d","theme_color":"#10131d","lang":"bn","icons":[]}
+{
+  "id":"/",
+  "name":"DBT Games · UNO Adda",
+  "short_name":"DBT Games",
+  "description":"UNO Adda by DBT — Classic and Flex multiplayer card games.",
+  "start_url":"/",
+  "scope":"/",
+  "display":"standalone",
+  "display_override":["window-controls-overlay","standalone","minimal-ui"],
+  "orientation":"any",
+  "background_color":"#07111f",
+  "theme_color":"#07111f",
+  "lang":"bn",
+  "categories":["games","entertainment"],
+  "icons":[
+    {"src":"/dbt-app-icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"},
+    {"src":"/dbt-app-icon-maskable.svg","sizes":"any","type":"image/svg+xml","purpose":"maskable"}
+  ],
+  "shortcuts":[
+    {"name":"UNO Classic","short_name":"Classic","url":"/?dbtStaging=1"},
+    {"name":"UNO Flex","short_name":"Flex","url":"/flex/"}
+  ]
+}
