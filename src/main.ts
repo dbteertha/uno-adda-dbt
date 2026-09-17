@@ -38,7 +38,7 @@ function serveGamePage(res: ServerResponse, filename: string, flex = false) {
   }
   page = page.replace(
     "</head>",
-    '  <link rel="stylesheet" href="/premium-reconnect.css?v=staging-1" />\n  <script defer src="/premium-reconnect.js?v=staging-1"></script>\n</head>',
+    '  <link rel="stylesheet" href="/premium-reconnect.css?v=staging-1" />\n  <script defer src="/premium-reconnect.js?v=staging-1"></script>\n  <script defer src="/premium-multiplayer-loader.js?v=staging-1"></script>\n</head>',
   );
   res.statusCode = 200;
   res.setHeader("Content-Type", "text/html; charset=utf-8");
