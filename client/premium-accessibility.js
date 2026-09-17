@@ -1,6 +1,6 @@
 (() => {
-  if (window.DBT_ACCESSIBILITY_V2) return;
-  window.DBT_ACCESSIBILITY_V2 = true;
+  if (window.DBT_ACCESSIBILITY_V3) return;
+  window.DBT_ACCESSIBILITY_V3 = true;
 
   const stable = window.DBT_STABILITY;
   const root = document.documentElement;
@@ -27,6 +27,7 @@
     largeText: false,
     colorSymbols: false,
     lowEnd: !!navigator.connection?.saveData || (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 4,
+    keepAwake: false,
   };
   let saved = {};
   try { saved = JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch {}
@@ -60,6 +61,25 @@
     }, 120);
   };
 
+  const enhancementsStyle = document.createElement('style');
+  enhancementsStyle.id = 'dbt-session-qol-style';
+  enhancementsStyle.textContent = `
+    :root{--dbt-vh:1vh}
+    html.dbt-page-hidden .orb,html.dbt-page-hidden .dbt-fx-particle,html.dbt-page-hidden .dbt-special-fx{animation-play-state:paused!important}
+    html.dbt-save-data :where(.orb,.dbt-fx-particle,.dbt-special-fx i){display:none!important}
+    html.dbt-input-keyboard :where(button,a,[tabindex]):focus-visible{outline-offset:4px!important}
+    #dbt-network-quality{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:6px 9px;border-radius:999px;border:1px solid rgba(255,255,255,.12);font-size:11px;font-weight:800;letter-spacing:.04em;white-space:nowrap}
+    #dbt-network-quality::before{content:'';width:7px;height:7px;border-radius:50%;background:#5ee58b;box-shadow:0 0 9px currentColor}
+    #dbt-network-quality[data-quality='slow']::before{background:#ffca5c}
+    #dbt-network-quality[data-quality='offline']::before{background:#ff6f7d}
+    #dbt-network-quality[data-quality='unknown']::before{background:#91a7b8}
+    #dbt-share-game{min-width:42px;min-height:42px;border-radius:12px}
+    html.dbt-landscape-phone #dbt-a11y-panel{max-height:calc(100dvh - 10px)}
+    @media (max-width:720px){#dbt-network-quality{max-width:96px;overflow:hidden;text-overflow:ellipsis}#dbt-share-game{min-width:44px;min-height:44px}}
+    @media (pointer:coarse){:where(button,.game-tile,input[type='checkbox']){min-height:44px}.dbt-a11y-toggle{padding-block:15px}}
+  `;
+  document.head.appendChild(enhancementsStyle);
+
   const dialog = document.createElement('dialog');
   dialog.id = 'dbt-a11y-panel';
   dialog.setAttribute('aria-labelledby', 'dbt-a11y-title');
@@ -74,9 +94,10 @@
         <label class="dbt-a11y-toggle"><span><b>Larger text</b><small>Increase interface text without changing game logic.</small></span><input data-setting="largeText" type="checkbox"></label>
         <label class="dbt-a11y-toggle"><span><b>Color symbols / patterns</b><small>Add patterns so card colors are not identified by color alone.</small></span><input data-setting="colorSymbols" type="checkbox"></label>
         <label class="dbt-a11y-toggle"><span><b>Low-end mode</b><small>Reduce blur, particles, shadows and visual load.</small></span><input data-setting="lowEnd" type="checkbox"></label>
+        <label class="dbt-a11y-toggle"><span><b>Keep screen awake</b><small>Ask supported devices to keep the display on while a match is visible.</small></span><input data-setting="keepAwake" type="checkbox"></label>
       </div>
-      <div class="dbt-a11y-actions"><button id="dbt-install-app" type="button" hidden>Install DBT Games</button><button id="dbt-a11y-reset" type="button">Reset settings</button></div>
-      <div class="dbt-a11y-shortcuts"><b>Keyboard:</b> <kbd>D</kbd> Draw · <kbd>U</kbd> UNO · <kbd>P</kbd> Pass · <kbd>?</kbd> Accessibility · <kbd>Esc</kbd> Close dialog</div>
+      <div class="dbt-a11y-actions"><button id="dbt-install-app" type="button" hidden>Install DBT Games</button><button id="dbt-share-current" type="button">Share game</button><button id="dbt-a11y-reset" type="button">Reset settings</button></div>
+      <div class="dbt-a11y-shortcuts"><b>Keyboard:</b> <kbd>D</kbd> Draw · <kbd>U</kbd> UNO · <kbd>P</kbd> Pass · <kbd>←</kbd>/<kbd>→</kbd> Game rail · <kbd>?</kbd> Accessibility · <kbd>Esc</kbd> Close dialog</div>
     </div>`;
   document.body.appendChild(dialog);
 
@@ -88,6 +109,20 @@
   openButton.textContent = '♿';
   const host = document.querySelector('.top-actions') || document.querySelector('.flex-top') || document.body;
   host.appendChild(openButton);
+
+  const shareButton = document.createElement('button');
+  shareButton.id = 'dbt-share-game';
+  shareButton.type = 'button';
+  shareButton.title = 'Share DBT Games';
+  shareButton.setAttribute('aria-label', 'Share DBT Games');
+  shareButton.textContent = '↗';
+  host.insertBefore(shareButton, openButton);
+
+  const networkQuality = document.createElement('span');
+  networkQuality.id = 'dbt-network-quality';
+  networkQuality.setAttribute('role', 'status');
+  networkQuality.setAttribute('aria-live', 'polite');
+  host.insertBefore(networkQuality, shareButton);
 
   const syncInputs = () => dialog.querySelectorAll('[data-setting]').forEach((input) => {
     input.checked = !!settings[input.dataset.setting];
@@ -101,9 +136,7 @@
     if (!dialog.open) dialog.showModal();
     requestAnimationFrame(() => dialog.querySelector('.dbt-a11y-close')?.focus());
   });
-  const closeDialog = () => {
-    if (dialog.open) dialog.close();
-  };
+  const closeDialog = () => { if (dialog.open) dialog.close(); };
   openButton.addEventListener('click', openDialog);
   dialog.querySelector('.dbt-a11y-close')?.addEventListener('click', closeDialog);
   dialog.addEventListener('click', (event) => { if (event.target === dialog) closeDialog(); });
@@ -111,15 +144,51 @@
     if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
     returnFocus = null;
   });
+
+  let wakeLock = null;
+  const matchVisible = () => {
+    const candidates = [document.getElementById('board'), document.getElementById('game')].filter(Boolean);
+    return candidates.some((el) => !el.hidden && getComputedStyle(el).display !== 'none');
+  };
+  const releaseWakeLock = async () => {
+    const lock = wakeLock;
+    wakeLock = null;
+    if (lock && !lock.released) try { await lock.release(); } catch {}
+  };
+  const syncWakeLock = () => safe('wake-lock', async () => {
+    const shouldHold = !!settings.keepAwake && document.visibilityState === 'visible' && matchVisible();
+    if (!shouldHold) { await releaseWakeLock(); return; }
+    if (wakeLock || !navigator.wakeLock?.request) return;
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => { wakeLock = null; }, { once:true });
+  });
+
   dialog.querySelectorAll('[data-setting]').forEach((input) => input.addEventListener('change', () => safe('setting', () => {
     settings[input.dataset.setting] = input.checked;
     apply();
+    syncWakeLock();
     announce(`${input.closest('label')?.querySelector('b')?.textContent || 'Setting'} ${input.checked ? 'on' : 'off'}`);
   })));
   dialog.querySelector('#dbt-a11y-reset')?.addEventListener('click', () => safe('reset', () => {
     Object.assign(settings, defaults);
-    apply(); syncInputs(); announce('Accessibility settings reset');
+    apply(); syncInputs(); syncWakeLock(); announce('Accessibility settings reset');
   }));
+
+  const shareCurrent = () => safe('share', async () => {
+    const data = { title: document.title || 'DBT Games', text: 'Play DBT Games with me', url: location.href };
+    if (navigator.share) {
+      try { await navigator.share(data); return; } catch (error) { if (error?.name === 'AbortError') return; }
+    }
+    try {
+      await navigator.clipboard.writeText(location.href);
+      window.DBT_UI?.toast?.('Game link copied', 'info');
+      announce('Game link copied');
+    } catch {
+      window.prompt('Copy this game link', location.href);
+    }
+  });
+  shareButton.addEventListener('click', shareCurrent);
+  dialog.querySelector('#dbt-share-current')?.addEventListener('click', shareCurrent);
 
   const colorNames = { RED:'Red', YELLOW:'Yellow', GREEN:'Green', BLUE:'Blue' };
   const improveNode = (node) => safe('names', () => {
@@ -146,6 +215,7 @@
     namesQueued = false;
     for (const node of pendingNodes) improveNode(node);
     pendingNodes.clear();
+    syncWakeLock();
   };
   const namesObserver = new MutationObserver((records) => {
     for (const record of records) for (const node of record.addedNodes) if (node.nodeType === 1) pendingNodes.add(node);
@@ -168,12 +238,36 @@
   observeText(document.getElementById('action-log'));
   observeText(document.getElementById('disconnect'));
 
+  const rail = document.querySelector('.game-rail');
+  if (rail) {
+    const syncRailTabs = () => {
+      const tiles = [...rail.querySelectorAll('.game-tile')];
+      const active = tiles.find((tile) => tile.classList.contains('active')) || tiles[0];
+      tiles.forEach((tile) => tile.tabIndex = tile === active ? 0 : -1);
+    };
+    syncRailTabs();
+    rail.addEventListener('keydown', (event) => {
+      if (!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+      const tiles = [...rail.querySelectorAll('.game-tile')];
+      if (!tiles.length) return;
+      const current = Math.max(0, tiles.indexOf(document.activeElement));
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? tiles.length - 1 : (current + (event.key === 'ArrowRight' ? 1 : -1) + tiles.length) % tiles.length;
+      event.preventDefault();
+      tiles[next].tabIndex = 0;
+      tiles[current].tabIndex = -1;
+      tiles[next].focus();
+      tiles[next].scrollIntoView({ block:'nearest', inline:'nearest', behavior: settings.reduceMotion ? 'auto' : 'smooth' });
+    });
+  }
+
   const clickControl = (id) => {
     const el = document.getElementById(id);
     if (!el || el.hidden || el.disabled || getComputedStyle(el).display === 'none') return false;
     el.click(); return true;
   };
   document.addEventListener('keydown', (event) => safe('keyboard', () => {
+    root.classList.add('dbt-input-keyboard');
+    root.classList.remove('dbt-input-pointer');
     if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
     const tag = event.target?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || event.target?.isContentEditable) return;
@@ -184,15 +278,53 @@
     const handled = keyLower === 'd' ? clickControl('draw') : keyLower === 'u' ? clickControl('uno') : keyLower === 'p' ? clickControl('pass') : false;
     if (handled) event.preventDefault();
   }));
+  document.addEventListener('pointerdown', () => {
+    root.classList.add('dbt-input-pointer');
+    root.classList.remove('dbt-input-keyboard');
+  }, { passive:true });
 
   let onlineInitialized = false;
+  const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  const updateNetworkQuality = () => {
+    const offline = !navigator.onLine;
+    const effective = connection?.effectiveType || '';
+    const saveData = !!connection?.saveData;
+    const rtt = Number(connection?.rtt || 0);
+    const slow = offline || saveData || effective === 'slow-2g' || effective === '2g' || rtt >= 700;
+    root.classList.toggle('dbt-offline', offline);
+    root.classList.toggle('dbt-save-data', saveData);
+    networkQuality.dataset.quality = offline ? 'offline' : slow ? 'slow' : effective ? 'good' : 'unknown';
+    networkQuality.textContent = offline ? 'Offline' : saveData ? 'Data saver' : effective ? effective.toUpperCase() : 'Online';
+    networkQuality.title = offline ? 'No network connection' : `Network ${effective || 'online'}${rtt ? ` · ${rtt}ms RTT` : ''}${saveData ? ' · data saver' : ''}`;
+  };
   const setOnline = () => {
     const offline = !navigator.onLine;
-    root.classList.toggle('dbt-offline', offline);
+    updateNetworkQuality();
     if (onlineInitialized) announce(offline ? 'Device offline. Reconnecting when network returns.' : 'Back online');
     onlineInitialized = true;
   };
-  window.addEventListener('online', setOnline); window.addEventListener('offline', setOnline); setOnline();
+  window.addEventListener('online', setOnline);
+  window.addEventListener('offline', setOnline);
+  connection?.addEventListener?.('change', updateNetworkQuality);
+  setOnline();
+
+  const syncViewport = () => {
+    root.style.setProperty('--dbt-vh', `${window.innerHeight * 0.01}px`);
+    root.classList.toggle('dbt-landscape-phone', window.innerWidth > window.innerHeight && window.innerHeight <= 540);
+  };
+  syncViewport();
+  window.addEventListener('resize', syncViewport, { passive:true });
+  window.visualViewport?.addEventListener?.('resize', syncViewport, { passive:true });
+
+  const syncVisibility = () => {
+    root.classList.toggle('dbt-page-hidden', document.visibilityState !== 'visible');
+    syncWakeLock();
+    if (document.visibilityState === 'visible') updateNetworkQuality();
+  };
+  document.addEventListener('visibilitychange', syncVisibility);
+  window.addEventListener('pagehide', releaseWakeLock);
+  window.addEventListener('pageshow', () => { syncVisibility(); syncViewport(); });
+  syncVisibility();
 
   let longTasks = [];
   if ('PerformanceObserver' in window) safe('performance-observer', () => {
@@ -239,5 +371,5 @@
     }));
   }
 
-  window.DBT_ACCESSIBILITY = Object.freeze({ settings, apply, announce, open:openDialog });
+  window.DBT_ACCESSIBILITY = Object.freeze({ settings, apply, announce, open:openDialog, share:shareCurrent, syncWakeLock, updateNetworkQuality });
 })();
