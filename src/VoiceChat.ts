@@ -199,10 +199,14 @@ export function registerVoiceChat(io: Server, classicRooms: Map<string, GameRoom
     io.of("/voice").to(scope).emit("v_peer_left", { token: member.token, reason });
   }
 
-  function forceVoiceOff(scope: string) {
+  function forceVoiceOff(scope: string, hostSocketId: string) {
     const members = [...(voiceRooms.get(scope)?.values() ?? [])];
     const voice = io.of("/voice");
     for (const member of members) {
+      if (member.voiceSocketId === hostSocketId) {
+        member.muted = true;
+        continue;
+      }
       voice.to(member.voiceSocketId).emit("v_forced_leave", { reason: "Voice was disabled by the room host." });
       removeVoice(member.voiceSocketId, "host-disabled");
     }
@@ -233,7 +237,7 @@ export function registerVoiceChat(io: Server, classicRooms: Map<string, GameRoom
 
       const scope = scopeOf(mode, roomCode);
       const policy = policyOf(scope);
-      if (!policy.enabled) return fail("Voice is disabled for this room.");
+      if (!policy.enabled && !identity.isHost) return fail("Voice is disabled for this room.");
       removeVoice(socket.id, "moved");
       let members = voiceRooms.get(scope);
       if (!members) { members = new Map(); voiceRooms.set(scope, members); }
@@ -261,7 +265,7 @@ export function registerVoiceChat(io: Server, classicRooms: Map<string, GameRoom
       voiceSession.set(socket.id, member);
       socket.join(scope);
 
-      const peers = [...members.values()].filter((person) => person.token !== member.token).map(publicMember);
+      const peers = policy.enabled ? [...members.values()].filter((person) => person.token !== member.token).map(publicMember) : [];
       socket.emit("v_joined", {
         self: publicMember(member),
         mode,
@@ -271,7 +275,7 @@ export function registerVoiceChat(io: Server, classicRooms: Map<string, GameRoom
         policy,
         canManagePolicy: member.isHost,
       });
-      socket.to(scope).emit("v_peer_joined", publicMember(member));
+      if (policy.enabled) socket.to(scope).emit("v_peer_joined", publicMember(member));
     });
 
     socket.on("v_policy", (raw: unknown) => {
@@ -285,7 +289,10 @@ export function registerVoiceChat(io: Server, classicRooms: Map<string, GameRoom
       const policy = parsed.data;
       voicePolicies.set(scope, policy);
       voice.to(scope).emit("v_policy", { policy, changedBy: me.name });
-      if (!policy.enabled) forceVoiceOff(scope);
+      if (!policy.enabled) {
+        me.muted = true;
+        forceVoiceOff(scope, socket.id);
+      }
     });
 
     socket.on("v_signal", (raw: unknown) => {
