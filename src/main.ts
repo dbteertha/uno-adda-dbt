@@ -5,6 +5,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { createUnoServer } from "./server.js";
 import { registerUnoFlex } from "./UnoFlex.js";
 import { registerFlexPrivacy } from "./FlexPrivacy.js";
+import { registerFlexSafetyHub } from "./FlexSafetyHub.js";
 import { registerPresence } from "./Presence.js";
 import { registerClassicPowers } from "./ClassicPowers.js";
 import { registerVoiceChat } from "./VoiceChat.js";
@@ -22,6 +23,7 @@ try {
   console.error("[DBT voice init] Voice disabled; gameplay continues.", error);
 }
 const flexPrivacy = registerFlexPrivacy(server.io);
+const flexSafety = registerFlexSafetyHub(server.io);
 registerUnoFlex(server.io);
 registerPresence(server.io, server.rooms, server.roomPrivacy);
 registerClassicPowers(server.io, server.rooms);
@@ -49,7 +51,7 @@ function serveGamePage(res: ServerResponse, filename: string, flex = false) {
     );
   }
   const flexManifest = flex ? '  <link rel="manifest" href="/manifest.webmanifest" />\n' : "";
-  const flexExtras = flex ? '  <link rel="stylesheet" href="/flex/privacy.css?v=staging-1" />\n  <script defer src="/flex/privacy.js?v=staging-1"></script>\n' : "";
+  const flexExtras = flex ? '  <link rel="stylesheet" href="/flex/privacy.css?v=staging-1" />\n  <script defer src="/flex/privacy.js?v=staging-1"></script>\n  <link rel="stylesheet" href="/flex/safety.css?v=staging-1" />\n  <script defer src="/flex/safety.js?v=staging-1"></script>\n' : "";
   const classicExtras = flex ? "" : '  <link rel="stylesheet" href="/premium-safety.css?v=staging-1" />\n  <script defer src="/premium-safety.js?v=staging-1"></script>\n  <link rel="stylesheet" href="/premium-competition.css?v=staging-1" />\n  <script defer src="/premium-competition.js?v=staging-1"></script>\n';
   page = page.replace(
     "</head>",
@@ -144,6 +146,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
     safetyHub.close();
     competitionHub.close();
     flexPrivacy.close();
+    flexSafety.close();
     void server.close().then(() => process.exit(0));
   });
 }
