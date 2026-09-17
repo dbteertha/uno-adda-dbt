@@ -1,4 +1,7 @@
-const CACHE='dbt-games-pwa-v6';
+const CORE_CACHE='dbt-games-core-v7';
+const RUNTIME_CACHE='dbt-games-runtime-v7';
+const CACHE_PREFIX='dbt-games-';
+const MAX_RUNTIME_ENTRIES=80;
 const CORE=[
   '/', '/flex/', '/manifest.webmanifest',
   '/style.css','/launcher.css','/flex-home.css','/premium.css','/live-hub.css',
@@ -12,40 +15,58 @@ const CORE=[
 
 self.addEventListener('install',event=>{
   event.waitUntil((async()=>{
-    const cache=await caches.open(CACHE);
+    const cache=await caches.open(CORE_CACHE);
     await Promise.allSettled(CORE.map(url=>cache.add(new Request(url,{cache:'reload'}))));
-    // Deliberately do not skipWaiting(): an active multiplayer tab keeps its current
-    // worker until the session is naturally closed/reloaded, avoiding mixed asset versions.
+    // No automatic skipWaiting: multiplayer tabs keep their current worker until
+    // the user explicitly applies an update or naturally closes/reloads the session.
   })());
 });
 
 self.addEventListener('activate',event=>{
   event.waitUntil((async()=>{
     const keys=await caches.keys();
-    await Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)));
+    const keep=new Set([CORE_CACHE,RUNTIME_CACHE]);
+    await Promise.all(keys.filter(key=>key.startsWith(CACHE_PREFIX)&&!keep.has(key)).map(key=>caches.delete(key)));
+    await self.clients.claim();
   })());
 });
 
+self.addEventListener('message',event=>{
+  if(event.data?.type==='DBT_APPLY_UPDATE') self.skipWaiting();
+});
+
+async function trimRuntime(){
+  const cache=await caches.open(RUNTIME_CACHE);
+  const keys=await cache.keys();
+  if(keys.length<=MAX_RUNTIME_ENTRIES) return;
+  await Promise.all(keys.slice(0,keys.length-MAX_RUNTIME_ENTRIES).map(key=>cache.delete(key)));
+}
+
+async function storeRuntime(request,response){
+  if(!response?.ok) return;
+  const cache=await caches.open(RUNTIME_CACHE);
+  await cache.put(request,response.clone()).catch(()=>{});
+  await trimRuntime().catch(()=>{});
+}
+
 async function networkFirst(request,fallback){
-  const cache=await caches.open(CACHE);
   try{
     const response=await fetch(request);
-    if(response && response.ok) cache.put(request,response.clone()).catch(()=>{});
+    if(response?.ok) storeRuntime(request,response).catch(()=>{});
     return response;
   }catch{
-    return (await cache.match(request)) || (fallback ? await cache.match(fallback) : undefined) || Response.error();
+    return (await caches.match(request)) || (fallback ? await caches.match(fallback) : undefined) || Response.error();
   }
 }
 
 async function cacheFirst(request){
-  const cache=await caches.open(CACHE);
-  const hit=await cache.match(request);
+  const hit=await caches.match(request);
   if(hit){
-    fetch(request).then(response=>{if(response?.ok) cache.put(request,response.clone()).catch(()=>{});}).catch(()=>{});
+    fetch(request).then(response=>{if(response?.ok) storeRuntime(request,response).catch(()=>{});}).catch(()=>{});
     return hit;
   }
   const response=await fetch(request);
-  if(response?.ok) cache.put(request,response.clone()).catch(()=>{});
+  if(response?.ok) storeRuntime(request,response).catch(()=>{});
   return response;
 }
 
@@ -57,7 +78,8 @@ self.addEventListener('fetch',event=>{
   if(url.pathname.startsWith('/socket.io/')||url.pathname.startsWith('/api/')||url.pathname==='/analytics') return;
 
   if(request.mode==='navigate'){
-    event.respondWith(networkFirst(request,'/'));
+    const fallback=url.pathname.startsWith('/flex')?'/flex/':'/';
+    event.respondWith(networkFirst(request,fallback));
     return;
   }
   if(['script','style','worker'].includes(request.destination)){
