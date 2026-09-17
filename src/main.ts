@@ -12,9 +12,7 @@ import { handleAdminRequest } from "./AdminPanel.js";
 import { handleAnalyticsRequest } from "./Analytics.js";
 
 const server = createUnoServer();
-// Voice is isolated from gameplay. A voice initialization failure must never block UNO startup.
 try {
-  // Register before Flex so trusted Flex session identities are observed before the Flex handler consumes them.
   registerVoiceChat(server.io, server.rooms);
 } catch (error) {
   console.error("[DBT voice init] Voice disabled; gameplay continues.", error);
@@ -22,8 +20,6 @@ try {
 registerUnoFlex(server.io);
 registerPresence(server.io, server.rooms);
 registerClassicPowers(server.io, server.rooms);
-// Staging reconnect resilience: after a brief grace period a disconnected Classic seat is held by AI.
-// The original session token remains valid, so reconnecting hands control back to the human.
 registerReconnectTakeover(server.io, server.rooms);
 
 const clientDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../client");
@@ -39,7 +35,7 @@ function serveGamePage(res: ServerResponse, filename: string, flex = false) {
   const flexManifest = flex ? '  <link rel="manifest" href="/manifest.webmanifest" />\n' : "";
   page = page.replace(
     "</head>",
-    `${flexManifest}  <link rel="stylesheet" href="/premium-accessibility.css?v=staging-1" />\n  <script defer src="/premium-accessibility.js?v=staging-1"></script>\n  <link rel="stylesheet" href="/premium-reconnect.css?v=staging-1" />\n  <script defer src="/premium-reconnect.js?v=staging-1"></script>\n  <script defer src="/premium-multiplayer-loader.js?v=staging-1"></script>\n  <link rel="stylesheet" href="/premium-match-story.css?v=staging-1" />\n  <script defer src="/premium-match-story.js?v=staging-1"></script>\n</head>`,
+    `${flexManifest}  <link rel="stylesheet" href="/premium-accessibility.css?v=staging-1" />\n  <script defer src="/premium-accessibility.js?v=staging-1"></script>\n  <link rel="stylesheet" href="/premium-reconnect.css?v=staging-1" />\n  <script defer src="/premium-reconnect.js?v=staging-1"></script>\n  <script defer src="/premium-multiplayer-loader.js?v=staging-1"></script>\n  <link rel="stylesheet" href="/premium-match-story.css?v=staging-1" />\n  <script defer src="/premium-match-story.js?v=staging-1"></script>\n  <link rel="stylesheet" href="/premium-modes.css?v=staging-1" />\n  <script defer src="/premium-modes.js?v=staging-1"></script>\n</head>`,
   );
   res.statusCode = 200;
   res.setHeader("Content-Type", "text/html; charset=utf-8");
@@ -47,7 +43,6 @@ function serveGamePage(res: ServerResponse, filename: string, flex = false) {
   res.end(page);
 }
 
-// Pretty invite links, visual editor API and private analytics dashboard.
 const originalRequestListeners = server.http.listeners("request");
 server.http.removeAllListeners("request");
 server.http.on("request", async (req: IncomingMessage, res: ServerResponse) => {
