@@ -120,7 +120,36 @@ test("bounded replay, report and tournament state prevents unbounded session gro
   const competition = read("src/CompetitionHub.ts");
   assert.match(arena, /MAX_REPLAY_ROOMS/);
   assert.match(arena, /MAX_REPLAY_FRAMES/);
+  assert.match(arena, /MAX_DELAYED_FRAMES/);
   assert.match(safety, /reports\.length\s*>\s*500/);
   assert.match(competition, /rankedMatches\.delete/);
   assert.match(competition, /tournaments\.delete/);
+});
+
+test("voice supports short-lived TURN credentials without removing static fallback", () => {
+  const voice = read("src/VoiceChat.ts");
+  assert.match(voice, /DBT_TURN_SHARED_SECRET/);
+  assert.match(voice, /createHmac\(["']sha1["']/);
+  assert.match(voice, /DBT_TURN_TTL_SECONDS/);
+  assert.match(voice, /DBT_TURN_USERNAME/);
+  assert.match(voice, /DBT_TURN_CREDENTIAL/);
+});
+
+test("spectator anti-sniping delay filters live and replay state", () => {
+  const arena = read("src/CompetitiveHub.ts");
+  assert.match(arena, /DBT_SPECTATOR_DELAY_MS/);
+  assert.match(arena, /SPECTATOR_DELAY_MS/);
+  assert.match(arena, /availableReplay/);
+  assert.match(arena, /frame\.at\s*<=\s*cutoff/);
+  assert.match(arena, /queueBroadcast/);
+});
+
+test("moderation review API is hidden unless a dedicated secret is configured", () => {
+  const review = read("src/ModerationReview.ts");
+  const main = read("src/main.ts");
+  assert.match(review, /DBT_SAFETY_REVIEW_KEY/);
+  assert.match(review, /timingSafeEqual/);
+  assert.match(review, /404/);
+  assert.match(review, /401/);
+  assert.match(main, /handleModerationReviewRequest/);
 });
