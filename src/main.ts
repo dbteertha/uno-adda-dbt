@@ -7,6 +7,7 @@ import { registerUnoFlex } from "./UnoFlex.js";
 import { registerPresence } from "./Presence.js";
 import { registerClassicPowers } from "./ClassicPowers.js";
 import { registerVoiceChat } from "./VoiceChat.js";
+import { registerReconnectTakeover } from "./ReconnectTakeover.js";
 import { handleAdminRequest } from "./AdminPanel.js";
 import { handleAnalyticsRequest } from "./Analytics.js";
 
@@ -21,6 +22,9 @@ try {
 registerUnoFlex(server.io);
 registerPresence(server.io, server.rooms);
 registerClassicPowers(server.io, server.rooms);
+// Staging reconnect resilience: after a brief grace period a disconnected Classic seat is held by AI.
+// The original session token remains valid, so reconnecting hands control back to the human.
+registerReconnectTakeover(server.io, server.rooms);
 
 const clientDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../client");
 
