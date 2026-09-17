@@ -1,18 +1,20 @@
-const CORE_CACHE='dbt-games-core-v9';
-const RUNTIME_CACHE='dbt-games-runtime-v9';
+const CORE_CACHE='dbt-games-core-v10';
+const RUNTIME_CACHE='dbt-games-runtime-v10';
 const CACHE_PREFIX='dbt-games-';
-const MAX_RUNTIME_ENTRIES=96;
+const MAX_RUNTIME_ENTRIES=104;
 const CORE=[
   '/', '/flex/', '/manifest.webmanifest',
   '/style.css','/launcher.css','/flex-home.css','/premium.css','/live-hub.css',
   '/premium-core.css','/premium-gamefeel.css','/premium-effects.css','/premium-accessibility.css',
-  '/premium-audio.js','/premium-social.css','/premium-social.js','/premium-progression.css','/premium-progression.js',
+  '/premium-audio.js','/premium-audio-mixer.css','/premium-audio-mixer.js',
+  '/premium-social.css','/premium-social.js','/premium-progression.css','/premium-progression.js',
   '/premium-rooms-v2.css','/premium-rooms-v2.js','/premium-multiplayer.css','/premium-multiplayer.js',
   '/classic-socket-hook.js','/app.js','/launcher.js','/classic-enhancements.js',
   '/premium-core.js','/premium-gamefeel.js','/premium-effects.js','/premium-accessibility.js',
   '/premium-reconnect.css','/premium-reconnect.js','/premium-multiplayer-loader.js',
   '/premium-match-story.css','/premium-match-story.js','/premium-modes.css','/premium-modes.js',
-  '/premium-weekly-recent.css','/premium-weekly-recent.js','/voice-chat.css','/voice-chat.js',
+  '/premium-weekly-recent.css','/premium-weekly-recent.js','/premium-voice-lab.css','/premium-voice-lab.js',
+  '/voice-chat.css','/voice-chat.js',
   '/flex/flex.css','/flex/flex-premium.css','/flex/socket-hook.js','/flex/flex.js','/flex/enhancements.js',
   '/dbt-app-icon.svg','/dbt-app-icon-maskable.svg'
 ];
