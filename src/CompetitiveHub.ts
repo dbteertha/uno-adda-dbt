@@ -5,12 +5,16 @@ import type { RoomPrivacyState } from "./server.js";
 
 type ReplayFrame = ReturnType<typeof publicSnapshot>;
 type LeaderRow = { name: string; avatar: string; wins: number; matches: number; points: number; lastWinAt: number };
+type DelayedFrame = { dueAt: number; frame: ReplayFrame };
 
 const roomCode = z.string().regex(/^[A-Z2-9]{4}$/);
 const watchSchema = z.object({ roomCode, inviteKey: z.string().uuid().optional() }).strict();
 const empty = z.object({}).strict();
 const MAX_REPLAY_ROOMS = 120;
 const MAX_REPLAY_FRAMES = 72;
+const MAX_DELAYED_FRAMES = 32;
+const requestedDelay = Number(process.env.DBT_SPECTATOR_DELAY_MS ?? 3000);
+const SPECTATOR_DELAY_MS = Number.isFinite(requestedDelay) ? Math.max(0, Math.min(15_000, Math.floor(requestedDelay))) : 3000;
 
 function publicSnapshot(room: GameRoom, spectators = 0) {
   const top = room.state.discardPile.at(-1);
@@ -53,6 +57,8 @@ export function registerCompetitiveHub(io: Server, rooms: Map<string, GameRoom>,
   const replay = new Map<string, ReplayFrame[]>();
   const replayTouched = new Map<string, number>();
   const lastRevision = new Map<string, number>();
+  const delayed = new Map<string, DelayedFrame[]>();
+  const published = new Map<string, ReplayFrame>();
   const scoredRounds = new Set<string>();
   const leaderboard = new Map<string, LeaderRow>();
 
@@ -96,6 +102,25 @@ export function registerCompetitiveHub(io: Server, rooms: Map<string, GameRoom>,
     arena.to(scope(code)).emit("a_spectators", { roomCode: code, spectators: countFor(code) });
   }
 
+  function queueBroadcast(code: string, frame: ReplayFrame) {
+    let list = delayed.get(code);
+    if (!list) { list = []; delayed.set(code, list); }
+    list.push({ dueAt: frame.at + SPECTATOR_DELAY_MS, frame });
+    if (list.length > MAX_DELAYED_FRAMES) list.splice(0, list.length - MAX_DELAYED_FRAMES);
+  }
+
+  function drainDelayed(now = Date.now()) {
+    for (const [code, list] of delayed) {
+      while (list.length && list[0].dueAt <= now) {
+        const item = list.shift()!;
+        const frame = { ...item.frame, spectators: countFor(code) };
+        published.set(code, frame);
+        arena.to(scope(code)).emit("a_snapshot", frame);
+      }
+      if (!list.length) delayed.delete(code);
+    }
+  }
+
   function capture(room: GameRoom) {
     if (lastRevision.get(room.state.roomCode) === room.revision) return;
     lastRevision.set(room.state.roomCode, room.revision);
@@ -106,6 +131,7 @@ export function registerCompetitiveHub(io: Server, rooms: Map<string, GameRoom>,
     frames.push(frame);
     if (frames.length > MAX_REPLAY_FRAMES) frames.splice(0, frames.length - MAX_REPLAY_FRAMES);
     replayTouched.set(code, Date.now());
+    queueBroadcast(code, frame);
 
     const latest = room.history[0];
     if (latest) {
@@ -129,8 +155,11 @@ export function registerCompetitiveHub(io: Server, rooms: Map<string, GameRoom>,
         }
       }
     }
+  }
 
-    arena.to(scope(code)).emit("a_snapshot", frame);
+  function availableReplay(code: string) {
+    const cutoff = Date.now() - SPECTATOR_DELAY_MS;
+    return (replay.get(code) ?? []).filter((frame) => frame.at <= cutoff);
   }
 
   function trimReplayRooms() {
@@ -140,6 +169,8 @@ export function registerCompetitiveHub(io: Server, rooms: Map<string, GameRoom>,
       replay.delete(code);
       replayTouched.delete(code);
       lastRevision.delete(code);
+      delayed.delete(code);
+      published.delete(code);
     }
   }
 
@@ -172,8 +203,11 @@ export function registerCompetitiveHub(io: Server, rooms: Map<string, GameRoom>,
       spectatorCounts.set(code, countFor(code) + 1);
       socket.join(scope(code));
       capture(room);
-      socket.emit("a_watching", { roomCode: code, spectators: countFor(code), replayFrames: replay.get(code)?.length ?? 0 });
-      socket.emit("a_snapshot", publicSnapshot(room, countFor(code)));
+      drainDelayed();
+      const frames = availableReplay(code);
+      const latestPublished = published.get(code) ?? frames.at(-1);
+      socket.emit("a_watching", { roomCode: code, spectators: countFor(code), replayFrames: frames.length, delayMs: SPECTATOR_DELAY_MS });
+      if (latestPublished) socket.emit("a_snapshot", { ...latestPublished, spectators: countFor(code) });
       arena.to(scope(code)).emit("a_spectators", { roomCode: code, spectators: countFor(code) });
     });
 
@@ -182,7 +216,7 @@ export function registerCompetitiveHub(io: Server, rooms: Map<string, GameRoom>,
       if (!empty.safeParse(raw ?? {}).success) return;
       const code = watching.get(socket.id);
       if (!code) return fail("Watch a room before opening replay.");
-      socket.emit("a_replay", { roomCode: code, frames: replay.get(code) ?? [] });
+      socket.emit("a_replay", { roomCode: code, frames: availableReplay(code), delayMs: SPECTATOR_DELAY_MS });
     });
 
     socket.on("a_refresh", (raw: unknown) => {
@@ -197,13 +231,14 @@ export function registerCompetitiveHub(io: Server, rooms: Map<string, GameRoom>,
 
   const ticker = setInterval(() => {
     for (const room of rooms.values()) capture(room);
+    drainDelayed();
     trimReplayRooms();
     if (arena.sockets.size) {
       arena.emit("a_rooms", { rooms: publicRooms() });
       arena.emit("a_leaderboard", { rows: leaderboardRows(), persistence: "server-session" });
     }
-  }, 750);
+  }, 500);
   ticker.unref();
 
-  return { close: () => clearInterval(ticker) };
+  return { close: () => clearInterval(ticker), delayMs: SPECTATOR_DELAY_MS };
 }
