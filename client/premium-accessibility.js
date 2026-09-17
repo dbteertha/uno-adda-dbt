@@ -1,6 +1,6 @@
 (() => {
-  if (window.DBT_ACCESSIBILITY_V3) return;
-  window.DBT_ACCESSIBILITY_V3 = true;
+  if (window.DBT_ACCESSIBILITY_V4) return;
+  window.DBT_ACCESSIBILITY_V4 = true;
 
   const stable = window.DBT_STABILITY;
   const root = document.documentElement;
@@ -74,6 +74,7 @@
     #dbt-network-quality[data-quality='offline']::before{background:#ff6f7d}
     #dbt-network-quality[data-quality='unknown']::before{background:#91a7b8}
     #dbt-share-game{min-width:42px;min-height:42px;border-radius:12px}
+    #dbt-apply-update:not([hidden]){border-color:rgba(94,229,139,.45);box-shadow:0 0 0 1px rgba(94,229,139,.12) inset}
     html.dbt-landscape-phone #dbt-a11y-panel{max-height:calc(100dvh - 10px)}
     @media (max-width:720px){#dbt-network-quality{max-width:96px;overflow:hidden;text-overflow:ellipsis}#dbt-share-game{min-width:44px;min-height:44px}}
     @media (pointer:coarse){:where(button,.game-tile,input[type='checkbox']){min-height:44px}.dbt-a11y-toggle{padding-block:15px}}
@@ -96,7 +97,7 @@
         <label class="dbt-a11y-toggle"><span><b>Low-end mode</b><small>Reduce blur, particles, shadows and visual load.</small></span><input data-setting="lowEnd" type="checkbox"></label>
         <label class="dbt-a11y-toggle"><span><b>Keep screen awake</b><small>Ask supported devices to keep the display on while a match is visible.</small></span><input data-setting="keepAwake" type="checkbox"></label>
       </div>
-      <div class="dbt-a11y-actions"><button id="dbt-install-app" type="button" hidden>Install DBT Games</button><button id="dbt-share-current" type="button">Share game</button><button id="dbt-a11y-reset" type="button">Reset settings</button></div>
+      <div class="dbt-a11y-actions"><button id="dbt-install-app" type="button" hidden>Install DBT Games</button><button id="dbt-apply-update" type="button" hidden>Apply ready update</button><button id="dbt-share-current" type="button">Share game</button><button id="dbt-a11y-reset" type="button">Reset settings</button></div>
       <div class="dbt-a11y-shortcuts"><b>Keyboard:</b> <kbd>D</kbd> Draw · <kbd>U</kbd> UNO · <kbd>P</kbd> Pass · <kbd>←</kbd>/<kbd>→</kbd> Game rail · <kbd>?</kbd> Accessibility · <kbd>Esc</kbd> Close dialog</div>
     </div>`;
   document.body.appendChild(dialog);
@@ -344,6 +345,8 @@
 
   let installPrompt = null;
   const installButton = dialog.querySelector('#dbt-install-app');
+  const updateButton = dialog.querySelector('#dbt-apply-update');
+  let waitingRegistration = null;
   window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault(); installPrompt = event; installButton.hidden = false;
   });
@@ -358,14 +361,36 @@
     installPrompt = null; installButton.hidden = true;
   }));
 
+  const markUpdateReady = (registration) => {
+    if (!registration?.waiting) return;
+    waitingRegistration = registration;
+    if (updateButton) updateButton.hidden = false;
+    announce('A DBT Games update is ready. Apply it when you are between turns or after the match.');
+  };
+  updateButton?.addEventListener('click', () => safe('apply-update', async () => {
+    const worker = waitingRegistration?.waiting;
+    if (!worker) { updateButton.hidden = true; return; }
+    updateButton.disabled = true;
+    updateButton.textContent = 'Applying update…';
+    let reloaded = false;
+    const reloadOnce = () => {
+      if (reloaded) return;
+      reloaded = true;
+      location.reload();
+    };
+    navigator.serviceWorker.addEventListener('controllerchange', reloadOnce, { once:true });
+    worker.postMessage({ type:'DBT_APPLY_UPDATE' });
+    setTimeout(reloadOnce, 5000);
+  }));
+
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
     window.addEventListener('load', () => safe('service-worker', async () => {
-      const registration = await navigator.serviceWorker.register('/sw.js?v=pwa-6', { scope:'/' });
-      if (registration.waiting) announce('A DBT Games update is ready for the next reload.');
+      const registration = await navigator.serviceWorker.register('/sw.js?v=pwa-7', { scope:'/' });
+      if (registration.waiting) markUpdateReady(registration);
       registration.addEventListener('updatefound', () => {
         const worker = registration.installing;
         worker?.addEventListener('statechange', () => {
-          if (worker.state === 'installed' && navigator.serviceWorker.controller) announce('A DBT Games update is ready for the next reload.');
+          if (worker.state === 'installed' && navigator.serviceWorker.controller) markUpdateReady(registration);
         });
       });
     }));
