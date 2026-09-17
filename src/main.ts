@@ -28,6 +28,24 @@ registerReconnectTakeover(server.io, server.rooms);
 
 const clientDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../client");
 
+function serveGamePage(res: ServerResponse, filename: string, flex = false) {
+  let page = readFileSync(path.join(clientDir, filename), "utf8");
+  if (flex) {
+    page = page.replace(
+      '<script defer src="/flex/flex.js"></script>',
+      '<script defer src="/flex/socket-hook.js?v=staging-1"></script>\n  <script defer src="/flex/flex.js"></script>',
+    );
+  }
+  page = page.replace(
+    "</head>",
+    '  <link rel="stylesheet" href="/premium-reconnect.css?v=staging-1" />\n  <script defer src="/premium-reconnect.js?v=staging-1"></script>\n</head>',
+  );
+  res.statusCode = 200;
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.setHeader("Cache-Control", "no-store");
+  res.end(page);
+}
+
 // Pretty invite links, visual editor API and private analytics dashboard.
 const originalRequestListeners = server.http.listeners("request");
 server.http.removeAllListeners("request");
@@ -63,20 +81,36 @@ server.http.on("request", async (req: IncomingMessage, res: ServerResponse) => {
     return;
   }
 
+  if (pathname === "/" || pathname === "/index.html") {
+    try { serveGamePage(res, "index.html"); }
+    catch (error) {
+      console.error("[DBT classic page]", error);
+      res.statusCode = 500;
+      res.end("Unable to open UNO Adda.");
+    }
+    return;
+  }
+
+  if (pathname === "/flex" || pathname === "/flex/" || pathname === "/flex/index.html") {
+    try { serveGamePage(res, path.join("flex", "index.html"), true); }
+    catch (error) {
+      console.error("[DBT flex page]", error);
+      res.statusCode = 500;
+      res.end("Unable to open UNO Flex.");
+    }
+    return;
+  }
+
   if (/^\/room=[A-Z2-9]{4}\/?$/i.test(pathname)) {
-    try {
-      const page = readFileSync(path.join(clientDir, "index.html"));
-      res.statusCode = 200;
-      res.setHeader("Content-Type", "text/html; charset=utf-8");
-      res.setHeader("Cache-Control", "no-cache");
-      res.end(page);
-    } catch (error) {
+    try { serveGamePage(res, "index.html"); }
+    catch (error) {
       console.error("[DBT room link]", error);
       res.statusCode = 500;
       res.end("Unable to open UNO Adda room.");
     }
     return;
   }
+
   for (const listener of originalRequestListeners) {
     (listener as (req: IncomingMessage, res: ServerResponse) => void).call(server.http, req, res);
   }
