@@ -13,6 +13,7 @@
   let voiceGateTimer = 0;
   let socialGateTimer = 0;
   let progressionGateTimer = 0;
+  let roomsGateTimer = 0;
 
   const LABELS = {
     reverse:['↻','REVERSE'], skip:['⊘','SKIP'], draw2:['+2','DRAW TWO'], draw4:['+4','DRAW FOUR'], wild:['🌈','WILD'], devil:['😈','DEVIL'],
@@ -128,7 +129,7 @@
       const flexMode = location.pathname.startsWith('/flex') || new URLSearchParams(location.search).get('mode') === 'flex';
       const raw = localStorage.getItem(flexMode ? 'flex-session' : 'uno-session');
       const s = raw ? JSON.parse(raw) : null;
-      const token = flexMode ? s?.token : s?.sessionToken;
+      const token = flexMode ? (s?.sessionToken || s?.token) : s?.sessionToken;
       const code = String(s?.roomCode || '').toUpperCase();
       if (!token || !/^[A-Z2-9]{4}$/.test(code)) return false;
       const ids = flexMode ? ['lobby','game'] : ['lobby','board'];
@@ -137,6 +138,12 @@
         return !!el && !el.hidden && getComputedStyle(el).display !== 'none';
       });
     } catch { return false; }
+  }
+
+  function lobbyReady() {
+    if (!roomReady()) return false;
+    const lobby = document.getElementById('lobby');
+    return !!lobby && !lobby.hidden && getComputedStyle(lobby).display !== 'none';
   }
 
   function loadStagingVoiceWhenReady() {
@@ -202,6 +209,27 @@
     if (!window.DBT_PROGRESSION_V1 && !progressionGateTimer) progressionGateTimer = setInterval(attempt, 1100);
   }
 
+  function loadStagingRoomsWhenLobbyReady() {
+    const stable = window.DBT_STABILITY;
+    const forced = new URLSearchParams(location.search).get('dbtRooms') === '1';
+    if (!stable || (!onStaging() && !forced)) return;
+    stable.flags.rooms = true;
+    const attempt = () => {
+      if (!stable.feature('rooms') || window.DBT_ROOMS_V2) {
+        if (roomsGateTimer) { clearInterval(roomsGateTimer); roomsGateTimer = 0; }
+        return;
+      }
+      if (!lobbyReady()) return;
+      if (roomsGateTimer) { clearInterval(roomsGateTimer); roomsGateTimer = 0; }
+      void stable.guardAsync('staging-rooms-v2-loader', async () => {
+        await stable.style('premium-rooms-v2-css', '/premium-rooms-v2.css?v=staging-1', { feature:'rooms', selector:'link[data-dbt-rooms-v2-css]', dataset:{ dbtRoomsV2Css:'1' } });
+        await stable.script('premium-rooms-v2', '/premium-rooms-v2.js?v=staging-1', { feature:'rooms', selector:'script[data-dbt-rooms-v2]', ready:() => !!window.DBT_ROOMS_V2, dataset:{ dbtRoomsV2:'1' } });
+      });
+    };
+    attempt();
+    if (!window.DBT_ROOMS_V2 && !roomsGateTimer) roomsGateTimer = setInterval(attempt, 1300);
+  }
+
   function boot() {
     new MutationObserver(onRootEffect).observe(root,{attributes:true,attributeFilter:['data-dbt-effect']});
     observeText(document.getElementById('classic-power-status'),onPowerText);
@@ -232,6 +260,7 @@
     loadStagingVoiceWhenReady();
     loadStagingSocialWhenReady();
     loadStagingProgressionWhenReady();
+    loadStagingRoomsWhenLobbyReady();
   }
 
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
