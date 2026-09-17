@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { GameRoom } from "./GameRoom.js";
 
 type VoiceMode = "classic" | "flex";
+type VoicePolicy = { enabled: boolean; pttOnly: boolean; openMicAllowed: boolean };
 type FlexAuth = {
   token: string;
   roomCode: string;
@@ -11,6 +12,7 @@ type FlexAuth = {
   gameSocketId: string;
   connected: boolean;
   updatedAt: number;
+  isHost: boolean;
 };
 type VoiceMember = {
   mode: VoiceMode;
@@ -20,6 +22,7 @@ type VoiceMember = {
   avatar: string;
   voiceSocketId: string;
   muted: boolean;
+  isHost: boolean;
 };
 
 const roomCodeSchema = z.string().regex(/^[A-Z2-9]{4}$/);
@@ -38,10 +41,19 @@ const signalSchema = z.object({
   ]),
 }).strict();
 const metaSchema = z.object({ muted: z.boolean() }).strict();
+const policySchema = z.object({
+  enabled: z.boolean(),
+  pttOnly: z.boolean(),
+  openMicAllowed: z.boolean(),
+}).strict().transform((value) => ({
+  enabled: value.enabled,
+  pttOnly: value.pttOnly,
+  openMicAllowed: value.pttOnly ? false : value.openMicAllowed,
+}));
 const emptySchema = z.object({}).strict();
 
 function publicMember(member: VoiceMember) {
-  return { token: member.token, name: member.name, avatar: member.avatar, muted: member.muted };
+  return { token: member.token, name: member.name, avatar: member.avatar, muted: member.muted, isHost: member.isHost };
 }
 
 function iceConfig() {
@@ -60,26 +72,30 @@ export function registerVoiceChat(io: Server, classicRooms: Map<string, GameRoom
   const flexSocketToken = new Map<string, string>();
   const voiceRooms = new Map<string, Map<string, VoiceMember>>();
   const voiceSession = new Map<string, VoiceMember>();
+  const voicePolicies = new Map<string, VoicePolicy>();
   const scopeOf = (mode: VoiceMode, roomCode: string) => `${mode}:${roomCode}`;
+  const policyOf = (scope: string): VoicePolicy => voicePolicies.get(scope) ?? { enabled: true, pttOnly: false, openMicAllowed: true };
 
-  // Registered before the Flex game handler so server-issued Flex sessions can be observed
-  // without changing Flex gameplay state or trusting client-provided identity data.
   const flex = io.of("/flex");
   flex.on("connection", (socket: Socket) => {
     let pendingProfile: { name: string; avatar: string } | null = null;
     let pendingReconnect: { roomCode: string; token: string } | null = null;
+    let pendingRole: "host" | "guest" | null = null;
     let reconnectRejected = false;
 
-    const captureProfile = (raw: unknown) => {
+    const captureProfile = (raw: unknown, role: "host" | "guest") => {
       const parsed = z.object({
         displayName: z.string().trim().min(1).max(24),
         avatar: z.string().trim().min(1).max(8),
       }).passthrough().safeParse(raw);
-      if (parsed.success) pendingProfile = { name: parsed.data.displayName, avatar: parsed.data.avatar };
+      if (parsed.success) {
+        pendingProfile = { name: parsed.data.displayName, avatar: parsed.data.avatar };
+        pendingRole = role;
+      }
     };
-    socket.on("f_create_multi", captureProfile);
-    socket.on("f_create_bot", captureProfile);
-    socket.on("f_join", captureProfile);
+    socket.on("f_create_multi", (raw: unknown) => captureProfile(raw, "host"));
+    socket.on("f_create_bot", (raw: unknown) => captureProfile(raw, "host"));
+    socket.on("f_join", (raw: unknown) => captureProfile(raw, "guest"));
 
     socket.on("f_reconnect", (raw: unknown) => {
       const parsed = z.object({ roomCode: roomCodeSchema, sessionToken: uuidSchema }).strict().safeParse(raw);
@@ -113,10 +129,12 @@ export function registerVoiceChat(io: Server, classicRooms: Map<string, GameRoom
           gameSocketId: socket.id,
           connected: true,
           updatedAt: Date.now(),
+          isHost: prior?.isHost ?? pendingRole === "host",
         };
         flexAuth.set(auth.token, auth);
         flexSocketToken.set(socket.id, auth.token);
         pendingProfile = null;
+        pendingRole = null;
       }
       if (event === "f_left") {
         reconnectRejected = true;
@@ -158,7 +176,7 @@ export function registerVoiceChat(io: Server, classicRooms: Map<string, GameRoom
     try {
       const player = room.player(token);
       if (!player.connected || player.isBot) return null;
-      return { name: player.displayName, avatar: player.avatar };
+      return { name: player.displayName, avatar: player.avatar, isHost: room.tokens[0] === token };
     } catch {
       return null;
     }
@@ -167,7 +185,7 @@ export function registerVoiceChat(io: Server, classicRooms: Map<string, GameRoom
   function validateFlex(roomCode: string, token: string) {
     const auth = flexAuth.get(token);
     if (!auth || !auth.connected || auth.roomCode !== roomCode) return null;
-    return { name: auth.name, avatar: auth.avatar };
+    return { name: auth.name, avatar: auth.avatar, isHost: auth.isHost };
   }
 
   function removeVoice(socketId: string, reason = "left") {
@@ -179,6 +197,15 @@ export function registerVoiceChat(io: Server, classicRooms: Map<string, GameRoom
     if (room?.get(member.token)?.voiceSocketId === socketId) room.delete(member.token);
     if (room && room.size === 0) voiceRooms.delete(scope);
     io.of("/voice").to(scope).emit("v_peer_left", { token: member.token, reason });
+  }
+
+  function forceVoiceOff(scope: string) {
+    const members = [...(voiceRooms.get(scope)?.values() ?? [])];
+    const voice = io.of("/voice");
+    for (const member of members) {
+      voice.to(member.voiceSocketId).emit("v_forced_leave", { reason: "Voice was disabled by the room host." });
+      removeVoice(member.voiceSocketId, "host-disabled");
+    }
   }
 
   const voice = io.of("/voice");
@@ -204,8 +231,10 @@ export function registerVoiceChat(io: Server, classicRooms: Map<string, GameRoom
       const identity = mode === "classic" ? validateClassic(roomCode, sessionToken) : validateFlex(roomCode, sessionToken);
       if (!identity) return fail("Voice access expired. Rejoin the game room first.");
 
-      removeVoice(socket.id, "moved");
       const scope = scopeOf(mode, roomCode);
+      const policy = policyOf(scope);
+      if (!policy.enabled) return fail("Voice is disabled for this room.");
+      removeVoice(socket.id, "moved");
       let members = voiceRooms.get(scope);
       if (!members) { members = new Map(); voiceRooms.set(scope, members); }
       if (members.size >= 8 && !members.has(sessionToken)) return fail("This voice room is full.");
@@ -226,6 +255,7 @@ export function registerVoiceChat(io: Server, classicRooms: Map<string, GameRoom
         avatar: identity.avatar,
         voiceSocketId: socket.id,
         muted: true,
+        isHost: identity.isHost,
       };
       members.set(sessionToken, member);
       voiceSession.set(socket.id, member);
@@ -238,8 +268,24 @@ export function registerVoiceChat(io: Server, classicRooms: Map<string, GameRoom
         roomCode,
         peers,
         iceServers: iceConfig(),
+        policy,
+        canManagePolicy: member.isHost,
       });
       socket.to(scope).emit("v_peer_joined", publicMember(member));
+    });
+
+    socket.on("v_policy", (raw: unknown) => {
+      if (!spend(3)) return fail("Voice settings are changing too quickly.");
+      const parsed = policySchema.safeParse(raw);
+      if (!parsed.success) return fail("Voice policy request was invalid.");
+      const me = voiceSession.get(socket.id);
+      if (!me) return fail("Join voice first.");
+      if (!me.isHost) return fail("Only the room host can change voice policy.");
+      const scope = scopeOf(me.mode, me.roomCode);
+      const policy = parsed.data;
+      voicePolicies.set(scope, policy);
+      voice.to(scope).emit("v_policy", { policy, changedBy: me.name });
+      if (!policy.enabled) forceVoiceOff(scope);
     });
 
     socket.on("v_signal", (raw: unknown) => {
@@ -249,6 +295,7 @@ export function registerVoiceChat(io: Server, classicRooms: Map<string, GameRoom
       const me = voiceSession.get(socket.id);
       if (!me) return fail("Join voice first.");
       const scope = scopeOf(me.mode, me.roomCode);
+      if (!policyOf(scope).enabled) return fail("Voice is disabled for this room.");
       const target = voiceRooms.get(scope)?.get(parsed.data.targetToken);
       if (!target || target.token === me.token) return;
       voice.to(target.voiceSocketId).emit("v_signal", { fromToken: me.token, signal: parsed.data.signal });
@@ -260,6 +307,8 @@ export function registerVoiceChat(io: Server, classicRooms: Map<string, GameRoom
       if (!parsed.success) return;
       const me = voiceSession.get(socket.id);
       if (!me) return;
+      const policy = policyOf(scopeOf(me.mode, me.roomCode));
+      if (!policy.enabled) return;
       me.muted = parsed.data.muted;
       socket.to(scopeOf(me.mode, me.roomCode)).emit("v_peer_meta", { token: me.token, muted: me.muted });
     });
@@ -276,6 +325,11 @@ export function registerVoiceChat(io: Server, classicRooms: Map<string, GameRoom
   const cleanup = setInterval(() => {
     const cutoff = Date.now() - 40 * 60_000;
     for (const [token, auth] of flexAuth) if (!auth.connected && auth.updatedAt < cutoff) flexAuth.delete(token);
+    for (const scope of [...voicePolicies.keys()]) {
+      const [mode, roomCode] = scope.split(":") as [VoiceMode, string];
+      const active = mode === "classic" ? classicRooms.has(roomCode) : [...flexAuth.values()].some((auth) => auth.roomCode === roomCode && auth.connected);
+      if (!active) voicePolicies.delete(scope);
+    }
   }, 5 * 60_000);
   cleanup.unref();
 }
