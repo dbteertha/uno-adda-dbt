@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="DBT Games UNO Adda">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07111f"/><stop offset="1" stop-color="#12314a"/></linearGradient></defs>
+  <rect width="512" height="512" rx="112" fill="url(#g)"/>
+  <rect x="86" y="76" width="340" height="360" rx="48" fill="#0d2234" stroke="#68e5ff" stroke-width="16" transform="rotate(-5 256 256)"/>
+  <circle cx="256" cy="256" r="116" fill="#10131d" stroke="#ffd76a" stroke-width="12"/>
+  <text x="256" y="244" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="900" font-size="96" fill="#ffffff">DBT</text>
+  <text x="256" y="310" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="800" font-size="46" fill="#68e5ff">UNO</text>
+</svg>
