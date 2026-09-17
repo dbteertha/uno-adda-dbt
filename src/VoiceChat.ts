@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import type { Server, Socket } from "socket.io";
 import { z } from "zod";
 import type { GameRoom } from "./GameRoom.js";
@@ -56,14 +57,28 @@ function publicMember(member: VoiceMember) {
   return { token: member.token, name: member.name, avatar: member.avatar, muted: member.muted, isHost: member.isHost };
 }
 
-function iceConfig() {
+function iceConfig(identity = "guest") {
   const servers: Array<{ urls: string[]; username?: string; credential?: string }> = [
     { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
   ];
   const urls = (process.env.DBT_TURN_URLS ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+  if (!urls.length) return servers;
+
+  const sharedSecret = process.env.DBT_TURN_SHARED_SECRET?.trim();
+  if (sharedSecret) {
+    const requestedTtl = Number(process.env.DBT_TURN_TTL_SECONDS ?? 900);
+    const ttlSeconds = Number.isFinite(requestedTtl) ? Math.max(300, Math.min(3600, Math.floor(requestedTtl))) : 900;
+    const expires = Math.floor(Date.now() / 1000) + ttlSeconds;
+    const safeIdentity = identity.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 12) || "guest";
+    const username = `${expires}:${safeIdentity}`;
+    const credential = createHmac("sha1", sharedSecret).update(username).digest("base64");
+    servers.push({ urls, username, credential });
+    return servers;
+  }
+
   const username = process.env.DBT_TURN_USERNAME?.trim();
   const credential = process.env.DBT_TURN_CREDENTIAL?.trim();
-  if (urls.length && username && credential) servers.push({ urls, username, credential });
+  if (username && credential) servers.push({ urls, username, credential });
   return servers;
 }
 
@@ -271,7 +286,7 @@ export function registerVoiceChat(io: Server, classicRooms: Map<string, GameRoom
         mode,
         roomCode,
         peers,
-        iceServers: iceConfig(),
+        iceServers: iceConfig(member.token.slice(0, 12)),
         policy,
         canManagePolicy: member.isHost,
       });
