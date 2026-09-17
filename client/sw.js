@@ -1,10 +1,10 @@
-const CORE_CACHE='dbt-games-core-v11';
-const RUNTIME_CACHE='dbt-games-runtime-v11';
+const CORE_CACHE='dbt-games-core-v12';
+const RUNTIME_CACHE='dbt-games-runtime-v12';
 const CACHE_PREFIX='dbt-games-';
-const MAX_RUNTIME_ENTRIES=112;
+const MAX_RUNTIME_ENTRIES=128;
 const CORE=[
-  '/', '/flex/', '/manifest.webmanifest',
-  '/style.css','/launcher.css','/flex-home.css','/premium.css','/live-hub.css',
+  '/', '/flex/', '/arena', '/arena.html', '/manifest.webmanifest',
+  '/style.css','/launcher.css','/flex-home.css','/premium.css','/live-hub.css','/arena.css','/arena.js',
   '/premium-core.css','/premium-gamefeel.css','/premium-effects.css','/premium-accessibility.css',
   '/premium-audio.js','/premium-audio-mixer.css','/premium-audio-mixer.js',
   '/premium-social.css','/premium-social.js','/premium-progression.css','/premium-progression.js',
@@ -15,6 +15,7 @@ const CORE=[
   '/premium-match-story.css','/premium-match-story.js','/premium-modes.css','/premium-modes.js',
   '/premium-weekly-recent.css','/premium-weekly-recent.js','/premium-voice-lab.css','/premium-voice-lab.js',
   '/premium-room-privacy.css','/premium-room-privacy.js','/premium-captions.css','/premium-captions.js',
+  '/premium-diagnostics.css','/premium-diagnostics.js','/premium-safety.css','/premium-safety.js',
   '/voice-chat.css','/voice-chat.js',
   '/flex/flex.css','/flex/flex-premium.css','/flex/socket-hook.js','/flex/flex.js','/flex/enhancements.js',
   '/dbt-app-icon.svg','/dbt-app-icon-maskable.svg'
@@ -87,7 +88,7 @@ self.addEventListener('fetch',event=>{
   if(url.pathname.startsWith('/socket.io/')||url.pathname.startsWith('/api/')||url.pathname==='/analytics') return;
 
   if(request.mode==='navigate'){
-    const fallback=url.pathname.startsWith('/flex')?'/flex/':'/';
+    const fallback=url.pathname.startsWith('/flex')?'/flex/':url.pathname.startsWith('/arena')||url.pathname.startsWith('/spectate=')?'/arena':'/';
     event.respondWith(networkFirst(request,fallback));
     return;
   }
