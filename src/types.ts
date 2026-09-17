@@ -51,7 +51,7 @@ export interface PublicPlayer {
   connected: boolean;
   isReady: boolean;
   isMe: boolean;
-  isHost: boolean;
+  isHost?: boolean;
   isCurrent: boolean;
   cardCount: number;
   score: number;
@@ -99,6 +99,6 @@ export interface ClientSyncPayload {
   round: number;
   resultReason: string | null;
   lastEvent: GameEvent | null;
-  roomVisibility: RoomVisibility;
-  inviteKey: string | null;
+  roomVisibility?: RoomVisibility;
+  inviteKey?: string | null;
 }
