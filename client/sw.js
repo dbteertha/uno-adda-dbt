@@ -1,4 +1,4 @@
-const CACHE='dbt-games-pwa-v5';
+const CACHE='dbt-games-pwa-v6';
 const CORE=[
   '/', '/flex/', '/manifest.webmanifest',
   '/style.css','/launcher.css','/flex-home.css','/premium.css','/live-hub.css',
@@ -14,7 +14,8 @@ self.addEventListener('install',event=>{
   event.waitUntil((async()=>{
     const cache=await caches.open(CACHE);
     await Promise.allSettled(CORE.map(url=>cache.add(new Request(url,{cache:'reload'}))));
-    await self.skipWaiting();
+    // Deliberately do not skipWaiting(): an active multiplayer tab keeps its current
+    // worker until the session is naturally closed/reloaded, avoiding mixed asset versions.
   })());
 });
 
@@ -22,7 +23,6 @@ self.addEventListener('activate',event=>{
   event.waitUntil((async()=>{
     const keys=await caches.keys();
     await Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)));
-    await self.clients.claim();
   })());
 });
 
