@@ -13,6 +13,7 @@ import { registerReconnectTakeover } from "./ReconnectTakeover.js";
 import { registerCompetitiveHub } from "./CompetitiveHub.js";
 import { registerSafetyHub } from "./SafetyHub.js";
 import { registerCompetitionHub } from "./CompetitionHub.js";
+import { handleModerationReviewRequest } from "./ModerationReview.js";
 import { handleAdminRequest } from "./AdminPanel.js";
 import { handleAnalyticsRequest } from "./Analytics.js";
 
@@ -67,6 +68,7 @@ const originalRequestListeners = server.http.listeners("request");
 server.http.removeAllListeners("request");
 server.http.on("request", async (req: IncomingMessage, res: ServerResponse) => {
   try {
+    if (handleModerationReviewRequest(req, res, safetyHub)) return;
     if (await handleAnalyticsRequest(req, res)) return;
     if (await handleAdminRequest(req, res, server.io)) return;
   } catch (error) {
