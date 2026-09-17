@@ -9,10 +9,16 @@
     let ctx=null, master=null, padGain=null, filter=null, oscA=null, oscB=null;
     let enabled=localStorage.getItem('dbt-ambient')!=='off';
     let unlocked=false, voiceSpeaking=false, voiceFocus=localStorage.getItem('dbt-voice-focus')==='1';
+    let musicVolume=Math.max(0,Math.min(1,Number(localStorage.getItem('dbt-music-volume') ?? .75)));
+    let effectsVolume=Math.max(0,Math.min(1,Number(localStorage.getItem('dbt-effects-volume') ?? .8)));
     let currentBase=110;
 
     const gameVisible = () => ['playing','flex-playing'].includes(root.dataset.dbtScreen||'') || (!!document.getElementById('board') && !document.getElementById('board').hidden) || (!!document.getElementById('game') && !document.getElementById('game').hidden);
-    const targetGain = () => !enabled || !gameVisible() ? 0 : voiceSpeaking ? .0022 : voiceFocus ? .0035 : .009;
+    const targetGain = () => {
+      if(!enabled || !gameVisible() || musicVolume<=0) return 0;
+      const base = voiceSpeaking ? .0022 : voiceFocus ? .0035 : .009;
+      return base * musicVolume;
+    };
 
     function ensure(){
       if(ctx) return ctx;
@@ -52,21 +58,24 @@
     }
 
     function sting(kind='play'){
-      if(!enabled||!unlocked||!ctx||!gameVisible())return;
-      const map={reverse:[520,660],skip:[710,510],draw2:[240,360],draw4:[170,260],wild:[440,660],devil:[155,310],magnet:[360,720],shield:[420,840],freeze:[760,570],robbery:[190,285],flex:[520,780],challenge:[260,520]};
+      if(!enabled||!unlocked||!ctx||!gameVisible()||effectsVolume<=0)return;
+      const map={reverse:[520,660],skip:[710,510],draw2:[240,360],draw4:[170,260],wild:[440,660],devil:[155,310],magnet:[360,720],shield:[420,840],freeze:[760,570],robbery:[190,285],flex:[520,780],challenge:[260,520],uno:[840,1040],win:[520,780,1040]};
       const notes=map[kind]||[520]; const now=ctx.currentTime;
       notes.forEach((freq,i)=>{
         try{
-          const o=ctx.createOscillator(),g=ctx.createGain();o.type=i?'triangle':'sine';o.frequency.value=freq;g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(.009,now+.012+i*.012);g.gain.exponentialRampToValueAtTime(.0001,now+.16+i*.04);o.connect(g).connect(master);o.start(now+i*.018);o.stop(now+.23+i*.04);
+          const o=ctx.createOscillator(),g=ctx.createGain();o.type=i?'triangle':'sine';o.frequency.value=freq;g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(Math.max(.0002,.009*effectsVolume),now+.012+i*.012);g.gain.exponentialRampToValueAtTime(.0001,now+.16+i*.04);o.connect(g).connect(master);o.start(now+i*.018);o.stop(now+.23+i*.04);
         }catch{}
       });
     }
 
-    const setEnabled=(on)=>{enabled=!!on;localStorage.setItem('dbt-ambient',enabled?'on':'off');if(enabled)unlock();sync();ui.emit?.('audiochange',{enabled})};
+    const setEnabled=(on)=>{enabled=!!on;localStorage.setItem('dbt-ambient',enabled?'on':'off');if(enabled)unlock();sync();ui.emit?.('audiochange',{enabled,musicVolume,effectsVolume})};
     const setVoiceFocus=(on)=>{voiceFocus=!!on;localStorage.setItem('dbt-voice-focus',voiceFocus?'1':'0');sync()};
+    const setMusicVolume=(value)=>{musicVolume=Math.max(0,Math.min(1,Number(value)||0));localStorage.setItem('dbt-music-volume',String(musicVolume));if(musicVolume>0&&enabled)unlock();sync();ui.emit?.('audiomixchange',{musicVolume,effectsVolume})};
+    const setEffectsVolume=(value)=>{effectsVolume=Math.max(0,Math.min(1,Number(value)||0));localStorage.setItem('dbt-effects-volume',String(effectsVolume));ui.emit?.('audiomixchange',{musicVolume,effectsVolume})};
 
     ui.bus?.addEventListener('specialfx',e=>sting(e.detail?.kind));
     ui.bus?.addEventListener('cardimpactvisual',e=>{if(['draw4','devil'].includes(e.detail?.kind))sting(e.detail.kind)});
+    ui.bus?.addEventListener('socialmoment',e=>{const text=`${e.detail?.title||''} ${e.detail?.detail||''}`.toLowerCase();if(text.includes('uno'))sting('uno');if(text.includes('win'))sting('win')});
     ui.bus?.addEventListener('voiceactivity',e=>{voiceSpeaking=!!e.detail?.speaking;sync()});
     ui.bus?.addEventListener('voicefocus',e=>setVoiceFocus(!!e.detail?.enabled));
     new MutationObserver(sync).observe(root,{attributes:true,attributeFilter:['data-dbt-screen','data-dbt-intensity']});
@@ -76,7 +85,12 @@
       if(e.target?.closest?.('#sound-toggle')) setTimeout(()=>{if(localStorage.getItem('uno-sound')==='off')setEnabled(false)},0);
     },{passive:true});
 
-    window.DBT_AUDIO={get enabled(){return enabled},setEnabled,setVoiceFocus,sting,unlock};
+    window.DBT_AUDIO={
+      get enabled(){return enabled},
+      get musicVolume(){return musicVolume},
+      get effectsVolume(){return effectsVolume},
+      setEnabled,setVoiceFocus,setMusicVolume,setEffectsVolume,sting,unlock
+    };
   } catch (error) {
     stable?.record?.('premium-audio', error);
     stable?.disable?.('audio', 'Adaptive audio disabled after runtime failure');
