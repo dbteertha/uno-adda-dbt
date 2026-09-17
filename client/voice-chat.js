@@ -1,5 +1,5 @@
 (() => {
-  if (window.DBT_VOICE_V2) return;
+  if (window.DBT_VOICE_V3) return;
   const stable = window.DBT_STABILITY;
   const fail = (where, error) => stable?.record?.(`voice:${where}`, error);
 
@@ -21,6 +21,7 @@
       : visible(document.getElementById('lobby')) || visible(document.getElementById('board'));
 
     if (!session() || !inRoom()) return;
+    window.DBT_VOICE_V3 = true;
     window.DBT_VOICE_V2 = true;
 
     const ui = window.DBT_UI || { emit:()=>{}, haptic:()=>{} };
@@ -35,6 +36,8 @@
     let iceServers = [];
     let ptt = localStorage.getItem('dbt-voice-ptt') === '1';
     let focus = localStorage.getItem('dbt-voice-focus') === '1';
+    let policy = { enabled:true, pttOnly:false, openMicAllowed:true };
+    let canManagePolicy = false;
     let meterCtx = null;
     let localAnalyser = null;
     let meterTimer = 0;
@@ -56,7 +59,7 @@
     const dock = document.createElement('aside');
     dock.id = 'dbt-voice-dock';
     dock.className = 'dbt-voice-dock-compact';
-    dock.innerHTML = `<div class="dbt-voice-head" role="button" tabindex="0" aria-label="Toggle voice room panel"><span id="dbt-voice-live" class="dbt-voice-live"></span><strong>🎙️ VOICE ROOM</strong><small id="dbt-voice-status">OFF</small><span id="dbt-voice-chevron">▴</span></div><div class="dbt-voice-body"><div class="dbt-voice-controls"><button id="dbt-voice-join" type="button">JOIN VOICE</button><button id="dbt-voice-mic" type="button" disabled>🔇 MUTED</button><button id="dbt-voice-leave" type="button" disabled aria-label="Leave voice">✕</button></div><div class="dbt-voice-expanded"><div class="dbt-voice-setting-row"><button id="dbt-voice-ptt" type="button">PTT: OFF</button><button id="dbt-voice-focus" type="button">VOICE FOCUS</button></div><div class="dbt-voice-setting-row"><button id="dbt-voice-audio" type="button">🎵 ATMOSPHERE</button><button id="dbt-voice-mute-all" type="button">🔇 MUTE ALL</button></div><div id="dbt-voice-peers"></div><small class="dbt-voice-privacy">Peer-to-peer audio. Voice is not recorded or stored by DBT Games.</small></div></div>`;
+    dock.innerHTML = `<div class="dbt-voice-head" role="button" tabindex="0" aria-label="Toggle voice room panel"><span id="dbt-voice-live" class="dbt-voice-live"></span><strong>🎙️ VOICE ROOM</strong><small id="dbt-voice-status">OFF</small><span id="dbt-voice-chevron">▴</span></div><div class="dbt-voice-body"><div class="dbt-voice-controls"><button id="dbt-voice-join" type="button">JOIN VOICE</button><button id="dbt-voice-mic" type="button" disabled>🔇 MUTED</button><button id="dbt-voice-leave" type="button" disabled aria-label="Leave voice">✕</button></div><div class="dbt-voice-expanded"><div class="dbt-voice-setting-row"><button id="dbt-voice-ptt" type="button">PTT: OFF</button><button id="dbt-voice-focus" type="button">VOICE FOCUS</button></div><div class="dbt-voice-setting-row"><button id="dbt-voice-audio" type="button">🎵 ATMOSPHERE</button><button id="dbt-voice-mute-all" type="button">🔇 MUTE ALL</button></div><div id="dbt-voice-policy" class="dbt-voice-setting-row" hidden><button id="dbt-voice-policy-enabled" type="button">VOICE: ON</button><button id="dbt-voice-policy-mode" type="button">OPEN MIC ALLOWED</button></div><div id="dbt-voice-peers"></div><small class="dbt-voice-privacy">Peer-to-peer audio. Voice is not recorded or stored by DBT Games.</small></div></div>`;
     document.body.appendChild(dock);
 
     const consent = document.createElement('dialog');
@@ -74,17 +77,23 @@
     const focusBtn = $('dbt-voice-focus');
     const audioBtn = $('dbt-voice-audio');
     const muteAllBtn = $('dbt-voice-mute-all');
+    const policyRow = $('dbt-voice-policy');
+    const policyEnabledBtn = $('dbt-voice-policy-enabled');
+    const policyModeBtn = $('dbt-voice-policy-mode');
     const peerBox = $('dbt-voice-peers');
 
     const setStatus = (text, kind='off') => {
       statusEl.textContent = text;
       liveEl.className = 'dbt-voice-live' + (kind === 'on' ? ' on' : kind === 'warn' ? ' warn' : '');
     };
+    const voiceMaster = () => window.DBT_AUDIO_MIXER?.voiceVolume ?? 1;
+    const applyPeerVolume = (peer) => { if (peer?.audio) peer.audio.volume = peer.localMute ? 0 : Math.max(0, Math.min(1, peer.volume * voiceMaster())); };
 
     function syncControls() {
-      joinBtn.textContent = joined ? 'VOICE CONNECTED' : wanted ? 'CONNECTING…' : 'JOIN VOICE';
-      joinBtn.disabled = joined || wanted;
-      micBtn.disabled = !joined;
+      const disabledForRoom = !policy.enabled;
+      joinBtn.textContent = joined ? (disabledForRoom ? 'VOICE DISABLED' : 'VOICE CONNECTED') : wanted ? 'CONNECTING…' : disabledForRoom ? 'VOICE DISABLED BY HOST' : 'JOIN VOICE';
+      joinBtn.disabled = joined || wanted || (disabledForRoom && !canManagePolicy);
+      micBtn.disabled = !joined || disabledForRoom;
       leaveBtn.disabled = !joined && !wanted;
       if (ptt) {
         micBtn.textContent = muted ? '🎙️ HOLD TO TALK' : '🟢 TALKING';
@@ -97,20 +106,29 @@
       }
       pttBtn.textContent = `PTT: ${ptt ? 'ON' : 'OFF'}`;
       pttBtn.classList.toggle('active', ptt);
+      pttBtn.disabled = policy.pttOnly || !policy.openMicAllowed;
+      pttBtn.title = policy.pttOnly ? 'Room host requires push-to-talk' : '';
       focusBtn.textContent = focus ? 'VOICE FOCUS ✓' : 'VOICE FOCUS';
       focusBtn.classList.toggle('active', focus);
       const ambient = window.DBT_AUDIO?.enabled !== false;
       audioBtn.textContent = ambient ? '🎵 ATMOSPHERE ✓' : '🎵 ATMOSPHERE';
       audioBtn.classList.toggle('active', ambient);
-      if (joined) setStatus(`${1 + peers.size} IN VOICE`, 'on');
+      policyRow.hidden = !canManagePolicy;
+      policyEnabledBtn.textContent = policy.enabled ? 'VOICE: ON' : 'VOICE: OFF';
+      policyEnabledBtn.classList.toggle('active', policy.enabled);
+      policyModeBtn.textContent = policy.pttOnly ? 'PTT ONLY' : 'OPEN MIC ALLOWED';
+      policyModeBtn.classList.toggle('active', policy.pttOnly);
+      if (joined && disabledForRoom) setStatus('HOST CONTROL · OFF', 'warn');
+      else if (joined) setStatus(`${1 + peers.size} IN VOICE`, 'on');
       else if (wanted) setStatus('CONNECTING', 'warn');
+      else if (disabledForRoom) setStatus('DISABLED', 'warn');
       else setStatus('OFF');
     }
 
     function renderPeers() {
       peerBox.replaceChildren();
-      if (!joined) {
-        const p = document.createElement('small'); p.textContent = 'Join voice to see connected players.'; p.style.color = '#8298ae'; peerBox.appendChild(p); syncControls(); return;
+      if (!joined || !policy.enabled) {
+        const p = document.createElement('small'); p.textContent = !policy.enabled ? 'Voice is disabled for this room.' : 'Join voice to see connected players.'; p.style.color = '#8298ae'; peerBox.appendChild(p); syncControls(); return;
       }
       if (!peers.size) {
         const p = document.createElement('small'); p.textContent = 'Waiting for another player to join voice…'; p.style.color = '#8298ae'; peerBox.appendChild(p); syncControls(); return;
@@ -120,14 +138,14 @@
         const row = document.createElement('div'); row.className = 'dbt-voice-peer'; peer.row = row;
         const av = document.createElement('span'); av.className = 'dbt-peer-avatar'; av.textContent = info.avatar || '🎮';
         const copy = document.createElement('span'); copy.className = 'dbt-peer-info';
-        const name = document.createElement('b'); name.textContent = info.name || 'Player';
+        const name = document.createElement('b'); name.textContent = `${info.name || 'Player'}${info.isHost ? ' · HOST' : ''}`;
         const state = document.createElement('small'); state.textContent = info.muted ? 'Muted' : 'Voice connected';
         copy.append(name, state);
         const actions = document.createElement('span'); actions.className = 'dbt-peer-actions';
         const range = document.createElement('input'); range.type = 'range'; range.min = '0'; range.max = '1'; range.step = '.05'; range.value = String(peer.volume); range.setAttribute('aria-label', `Volume for ${info.name || 'player'}`);
-        range.oninput = () => { peer.volume = Number(range.value); if (peer.audio) peer.audio.volume = peer.localMute ? 0 : peer.volume; };
+        range.oninput = () => { peer.volume = Number(range.value); if (peer.audio) { peer.audio.dataset.dbtPeerBaseVolume = String(peer.volume); applyPeerVolume(peer); } };
         const mute = document.createElement('button'); mute.type = 'button'; mute.className = 'dbt-peer-mute'; mute.textContent = peer.localMute ? '🔇' : '🔊'; mute.title = 'Mute this player locally';
-        mute.onclick = () => { peer.localMute = !peer.localMute; if (peer.audio) peer.audio.volume = peer.localMute ? 0 : peer.volume; mute.textContent = peer.localMute ? '🔇' : '🔊'; };
+        mute.onclick = () => { peer.localMute = !peer.localMute; applyPeerVolume(peer); mute.textContent = peer.localMute ? '🔇' : '🔊'; };
         actions.append(range, mute); row.append(av, copy, actions); peerBox.appendChild(row);
       }
       syncControls();
@@ -147,10 +165,10 @@
     }
     function sampleMeters() {
       try {
-        let any = joined && !muted && rms(localAnalyser) > .035;
+        let any = policy.enabled && joined && !muted && rms(localAnalyser) > .035;
         dock.classList.toggle('dbt-voice-speaking', any);
         for (const [token, peer] of peers) {
-          const speaking = !meta.get(token)?.muted && rms(peer.analyser) > .028;
+          const speaking = policy.enabled && !meta.get(token)?.muted && rms(peer.analyser) > .028;
           peer.row?.classList.toggle('speaking', speaking);
           any = any || speaking;
         }
@@ -197,26 +215,27 @@
       peers.set(token, peer);
       if (stream) stream.getTracks().forEach((track) => pc.addTrack(track, stream));
       pc.onicecandidate = (event) => {
-        if (!event.candidate || !socket?.connected) return;
+        if (!event.candidate || !socket?.connected || !policy.enabled) return;
         socket.emit('v_signal', { targetToken:token, signal:{ type:'ice', candidate:JSON.stringify(event.candidate.toJSON ? event.candidate.toJSON() : event.candidate) } });
       };
       pc.ontrack = (event) => {
         try {
           const remoteStream = event.streams?.[0] || new MediaStream([event.track]);
           if (!peer.audio) {
-            const audio = document.createElement('audio'); audio.autoplay = true; audio.playsInline = true; audio.srcObject = remoteStream; audio.volume = peer.localMute ? 0 : peer.volume; audio.dataset.dbtVoicePeer = token; document.body.appendChild(audio); peer.audio = audio; audio.play().catch(()=>{});
+            const audio = document.createElement('audio'); audio.autoplay = true; audio.playsInline = true; audio.srcObject = remoteStream; audio.dataset.dbtVoicePeer = token; audio.dataset.dbtPeerBaseVolume = String(peer.volume); peer.audio = audio; applyPeerVolume(peer); document.body.appendChild(audio); audio.play().catch(()=>{});
           }
           attachRemoteMeter(peer, remoteStream);
         } catch (error) { fail('track', error); }
       };
       pc.onconnectionstatechange = () => {
-        if (pc.connectionState === 'failed') { try { pc.restartIce(); } catch {} }
+        if (pc.connectionState === 'failed' && policy.enabled) { try { pc.restartIce(); } catch {} }
         if (pc.connectionState === 'closed') dropPeer(token);
       };
       return peer;
     }
 
     async function makeOffer(token) {
+      if (!policy.enabled) return;
       const peer = await ensurePeer(token); if (!peer || peer.makingOffer) return;
       peer.makingOffer = true;
       try {
@@ -228,6 +247,7 @@
     }
 
     async function handleSignal(payload) {
+      if (!policy.enabled) return;
       const fromToken = payload?.fromToken, signal = payload?.signal;
       if (!fromToken || !signal || fromToken === selfToken) return;
       const peer = await ensurePeer(fromToken), pc = peer.pc;
@@ -252,13 +272,38 @@
     }
 
     function setMuted(value, announce=true) {
-      muted = !!value;
-      stream?.getAudioTracks().forEach((track) => { track.enabled = !muted; });
-      if (announce && joined && socket?.connected) socket.emit('v_meta', { muted });
+      muted = !policy.enabled ? true : !!value;
+      stream?.getAudioTracks().forEach((track) => { track.enabled = policy.enabled && !muted; });
+      if (announce && joined && socket?.connected && policy.enabled) socket.emit('v_meta', { muted });
       syncControls();
     }
-    function setPtt(value) { ptt = !!value; localStorage.setItem('dbt-voice-ptt', ptt ? '1' : '0'); if (ptt) setMuted(true, true); syncControls(); }
+    function setPtt(value) {
+      const mustPtt = policy.pttOnly || !policy.openMicAllowed;
+      ptt = mustPtt ? true : !!value;
+      localStorage.setItem('dbt-voice-ptt', ptt ? '1' : '0');
+      if (ptt) setMuted(true, true);
+      syncControls();
+    }
     function setFocus(value) { focus = !!value; localStorage.setItem('dbt-voice-focus', focus ? '1' : '0'); ui.emit?.('voicefocus', { enabled:focus }); window.DBT_AUDIO?.setVoiceFocus?.(focus); syncControls(); }
+    function normalizePolicy(next) {
+      const p = next && typeof next === 'object' ? next : {};
+      const pttOnly = !!p.pttOnly;
+      return { enabled:p.enabled !== false, pttOnly, openMicAllowed:pttOnly ? false : p.openMicAllowed !== false };
+    }
+    function applyPolicy(next, changedBy='') {
+      const previous = policy;
+      policy = normalizePolicy(next);
+      if (policy.pttOnly || !policy.openMicAllowed) setPtt(true);
+      if (!policy.enabled) { setMuted(true, false); closePeers(); }
+      if (changedBy && (previous.enabled !== policy.enabled || previous.pttOnly !== policy.pttOnly || previous.openMicAllowed !== policy.openMicAllowed)) toast(`${changedBy} updated voice room settings.`);
+      syncControls();
+      ui.emit?.('voicepolicychange', { policy:{...policy}, canManagePolicy });
+    }
+    function setPolicy(next) {
+      if (!canManagePolicy || !socket?.connected || !joined) return toast('Only the room host can change voice settings.');
+      const merged = normalizePolicy({ ...policy, ...next });
+      socket.emit('v_policy', merged);
+    }
 
     function createSocket() {
       if (socket) return socket;
@@ -267,12 +312,15 @@
       socket.on('connect', () => { const s = session(); if (wanted && s) socket.emit('v_join', { mode, roomCode:s.roomCode, sessionToken:s.sessionToken }); });
       socket.on('disconnect', () => { if (!wanted) return; joined = false; closePeers(); setMuted(true, false); setStatus('RECONNECTING', 'warn'); syncControls(); });
       socket.on('v_joined', async (data) => {
-        joined = true; wanted = true; selfToken = data?.self?.token || ''; iceServers = Array.isArray(data?.iceServers) ? data.iceServers : [];
+        joined = true; wanted = true; selfToken = data?.self?.token || ''; iceServers = Array.isArray(data?.iceServers) ? data.iceServers : []; canManagePolicy = !!data?.canManagePolicy;
+        policy = normalizePolicy(data?.policy);
         meta.clear(); closePeers();
-        for (const person of data?.peers || []) if (person?.token) { meta.set(person.token, person); await ensurePeer(person.token); await makeOffer(person.token); }
-        setMuted(true, true); renderPeers(); ui.haptic?.(10); ui.emit?.('voiceconnected', { mode, roomCode:data?.roomCode, peers:(data?.peers || []).length });
+        if (policy.enabled) for (const person of data?.peers || []) if (person?.token) { meta.set(person.token, person); await ensurePeer(person.token); await makeOffer(person.token); }
+        setPtt(ptt); setMuted(true, true); renderPeers(); ui.haptic?.(10); ui.emit?.('voiceconnected', { mode, roomCode:data?.roomCode, peers:(data?.peers || []).length, policy:{...policy}, canManagePolicy });
       });
-      socket.on('v_peer_joined', (person) => { if (!person?.token || person.token === selfToken) return; meta.set(person.token, person); void ensurePeer(person.token); renderPeers(); });
+      socket.on('v_policy', ({ policy:nextPolicy, changedBy }={}) => applyPolicy(nextPolicy, changedBy || 'Host'));
+      socket.on('v_forced_leave', ({ reason }={}) => { toast(reason || 'Voice was disabled by the host.'); leaveVoice('host-disabled'); });
+      socket.on('v_peer_joined', (person) => { if (!policy.enabled || !person?.token || person.token === selfToken) return; meta.set(person.token, person); void ensurePeer(person.token); renderPeers(); });
       socket.on('v_peer_left', ({ token }={}) => { if (!token) return; dropPeer(token); meta.delete(token); renderPeers(); });
       socket.on('v_peer_meta', ({ token, muted:remoteMuted }={}) => { if (!token) return; const info = meta.get(token) || {}; info.muted = !!remoteMuted; meta.set(token, info); renderPeers(); });
       socket.on('v_signal', (data) => void handleSignal(data));
@@ -301,7 +349,7 @@
       stopMeters();
     }
     function leaveVoice(reason='left') {
-      wanted = false; joined = false; setMuted(true, false);
+      wanted = false; joined = false; canManagePolicy = false; policy = { enabled:true, pttOnly:false, openMicAllowed:true }; setMuted(true, false);
       if (socket?.connected) socket.emit('v_leave', {});
       closePeers(); stopLocal(); selfToken = ''; meta.clear(); socket?.disconnect(); renderPeers(); setStatus('OFF'); syncControls(); ui.emit?.('voiceleft', { reason });
     }
@@ -310,22 +358,25 @@
     $('dbt-voice-consent-yes').onclick = () => { localStorage.setItem('dbt-voice-consent', '1'); consent.close(); void startVoice(); };
     joinBtn.onclick = askConsent;
     leaveBtn.onclick = () => leaveVoice('user');
-    micBtn.onclick = () => { if (joined && !ptt) setMuted(!muted, true); };
-    micBtn.addEventListener('pointerdown', (event) => { if (joined && ptt) { event.preventDefault(); setMuted(false, true); ui.haptic?.(7); } });
+    micBtn.onclick = () => { if (joined && !ptt && policy.enabled && policy.openMicAllowed) setMuted(!muted, true); };
+    micBtn.addEventListener('pointerdown', (event) => { if (joined && ptt && policy.enabled) { event.preventDefault(); setMuted(false, true); ui.haptic?.(7); } });
     ['pointerup','pointercancel','pointerleave'].forEach((type) => micBtn.addEventListener(type, () => { if (joined && ptt && !muted) setMuted(true, true); }));
-    pttBtn.onclick = () => setPtt(!ptt);
+    pttBtn.onclick = () => { if (!policy.pttOnly && policy.openMicAllowed) setPtt(!ptt); };
     focusBtn.onclick = () => setFocus(!focus);
     audioBtn.onclick = () => { const next = !(window.DBT_AUDIO?.enabled !== false); window.DBT_AUDIO?.setEnabled?.(next); syncControls(); };
-    muteAllBtn.onclick = () => { const shouldMute = [...peers.values()].some((peer) => !peer.localMute); for (const peer of peers.values()) { peer.localMute = shouldMute; if (peer.audio) peer.audio.volume = shouldMute ? 0 : peer.volume; } muteAllBtn.textContent = shouldMute ? '🔊 UNMUTE ALL' : '🔇 MUTE ALL'; renderPeers(); };
+    muteAllBtn.onclick = () => { const shouldMute = [...peers.values()].some((peer) => !peer.localMute); for (const peer of peers.values()) { peer.localMute = shouldMute; applyPeerVolume(peer); } muteAllBtn.textContent = shouldMute ? '🔊 UNMUTE ALL' : '🔇 MUTE ALL'; renderPeers(); };
+    policyEnabledBtn.onclick = () => setPolicy({ enabled:!policy.enabled });
+    policyModeBtn.onclick = () => setPolicy(policy.pttOnly ? { pttOnly:false, openMicAllowed:true } : { pttOnly:true, openMicAllowed:false });
 
     const head = dock.querySelector('.dbt-voice-head');
     const toggleDock = () => { dock.classList.toggle('dbt-voice-dock-compact'); $('dbt-voice-chevron').textContent = dock.classList.contains('dbt-voice-dock-compact') ? '▴' : '▾'; };
     head.onclick = toggleDock;
     head.onkeydown = (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleDock(); } };
-    document.addEventListener('keydown', (event) => { if (!joined || !ptt || event.repeat || event.code !== 'KeyV' || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || '')) return; event.preventDefault(); setMuted(false, true); });
+    document.addEventListener('keydown', (event) => { if (!joined || !ptt || !policy.enabled || event.repeat || event.code !== 'KeyV' || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || '')) return; event.preventDefault(); setMuted(false, true); });
     document.addEventListener('keyup', (event) => { if (joined && ptt && event.code === 'KeyV') { event.preventDefault(); setMuted(true, true); } });
     window.addEventListener('pagehide', () => leaveVoice('pagehide'));
     window.addEventListener('beforeunload', () => stream?.getTracks().forEach((track) => track.stop()));
+    ui.bus?.addEventListener('voicevolumechange', () => peers.forEach(applyPeerVolume));
 
     roomWatch = setInterval(() => {
       try {
@@ -337,7 +388,11 @@
     }, 1000);
 
     setPtt(ptt); setFocus(focus); renderPeers(); syncControls();
-    window.DBT_VOICE = { join:askConsent, leave:leaveVoice, get joined(){return joined;}, get muted(){return muted;}, setMuted, setPtt, setFocus };
+    window.DBT_VOICE = {
+      join:askConsent, leave:leaveVoice,
+      get joined(){return joined;}, get muted(){return muted;}, get policy(){return {...policy};}, get canManagePolicy(){return canManagePolicy;},
+      setMuted, setPtt, setFocus, setPolicy
+    };
   } catch (error) {
     fail('boot', error);
     document.getElementById('dbt-voice-dock')?.remove();
