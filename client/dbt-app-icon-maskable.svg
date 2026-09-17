@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="DBT Games">
+  <defs><radialGradient id="bg" cx="50%" cy="42%" r="75%"><stop stop-color="#123a55"/><stop offset="1" stop-color="#06101b"/></radialGradient></defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="154" fill="#091827" stroke="#68e5ff" stroke-width="18"/>
+  <circle cx="256" cy="256" r="126" fill="none" stroke="#ffd76a" stroke-width="8" opacity=".9"/>
+  <text x="256" y="248" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="900" font-size="102" fill="#ffffff">DBT</text>
+  <text x="256" y="316" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="800" font-size="42" fill="#68e5ff">GAMES</text>
+</svg>
