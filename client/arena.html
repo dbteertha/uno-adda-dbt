@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#07111f" />
+  <title>DBT Arena · Spectate</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="stylesheet" href="/arena.css" />
+</head>
+<body>
+  <header class="arena-top">
+    <a class="brand" href="/"><span>DBT</span><b>ARENA</b></a>
+    <div class="live"><i></i><span id="arena-connection">CONNECTING</span></div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div><small>READ-ONLY · NO HAND DATA</small><h1>Spectate live UNO tables</h1><p>Watch public table state, follow the match timeline and replay recent public moments without joining the game.</p></div>
+      <form id="watch-form" class="watch-form">
+        <input id="watch-code" maxlength="4" autocomplete="off" placeholder="ROOM" aria-label="Room code" />
+        <input id="watch-invite" autocomplete="off" placeholder="Invite key (optional)" aria-label="Spectator invite key" />
+        <button type="submit">WATCH →</button>
+      </form>
+    </section>
+
+    <section id="stage" class="stage" hidden>
+      <div class="stage-head"><div><small>LIVE TABLE</small><h2 id="stage-room">ROOM ----</h2></div><div class="stage-actions"><span id="spectator-count">0 watching</span><button id="live-btn" type="button">LIVE</button><button id="replay-btn" type="button">REPLAY</button></div></div>
+      <div class="table-summary">
+        <div><small>STATUS</small><b id="stage-status">LOBBY</b></div>
+        <div><small>ROUND</small><b id="stage-round">0</b></div>
+        <div><small>ACTIVE COLOR</small><b id="stage-color">—</b></div>
+        <div><small>TOP CARD</small><b id="stage-card">—</b></div>
+        <div><small>DRAW PILE</small><b id="stage-draw">—</b></div>
+      </div>
+      <div id="player-grid" class="player-grid"></div>
+      <div class="replay-bar"><input id="replay-range" type="range" min="0" max="0" value="0" disabled aria-label="Replay timeline" /><span id="replay-time">LIVE</span></div>
+      <div class="event-card"><span id="event-icon">⚡</span><div><b id="event-title">Waiting for action</b><small id="event-detail">Public match events appear here.</small></div></div>
+    </section>
+
+    <section class="arena-grid">
+      <div class="panel"><div class="panel-head"><div><small>DISCOVERY</small><h2>Public rooms</h2></div><button id="refresh-btn" type="button">REFRESH</button></div><div id="room-list" class="room-list"><p class="empty">Looking for public rooms…</p></div></div>
+      <div class="panel"><div class="panel-head"><div><small>SERVER SESSION</small><h2>Leaderboard</h2></div><span class="ephemeral">resets on deploy</span></div><div id="leaderboard" class="leaderboard"><p class="empty">No completed rounds yet.</p></div></div>
+    </section>
+  </main>
+
+  <div id="arena-toast" class="toast" hidden></div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script defer src="/arena.js"></script>
+</body>
+</html>
