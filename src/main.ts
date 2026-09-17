@@ -36,9 +36,10 @@ function serveGamePage(res: ServerResponse, filename: string, flex = false) {
       '<script defer src="/flex/socket-hook.js?v=staging-1"></script>\n  <script defer src="/flex/flex.js"></script>',
     );
   }
+  const flexManifest = flex ? '  <link rel="manifest" href="/manifest.webmanifest" />\n' : "";
   page = page.replace(
     "</head>",
-    '  <link rel="stylesheet" href="/premium-reconnect.css?v=staging-1" />\n  <script defer src="/premium-reconnect.js?v=staging-1"></script>\n  <script defer src="/premium-multiplayer-loader.js?v=staging-1"></script>\n</head>',
+    `${flexManifest}  <link rel="stylesheet" href="/premium-accessibility.css?v=staging-1" />\n  <script defer src="/premium-accessibility.js?v=staging-1"></script>\n  <link rel="stylesheet" href="/premium-reconnect.css?v=staging-1" />\n  <script defer src="/premium-reconnect.js?v=staging-1"></script>\n  <script defer src="/premium-multiplayer-loader.js?v=staging-1"></script>\n</head>`,
   );
   res.statusCode = 200;
   res.setHeader("Content-Type", "text/html; charset=utf-8");
