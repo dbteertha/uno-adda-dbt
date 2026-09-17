@@ -6,7 +6,7 @@
   root.classList.add('dbt-premium-v1');
 
   const reducedMotion = matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false;
-  const lowPower = ((navigator.hardwareConcurrency || 8) <= 4) || ((navigator.deviceMemory || 8) <= 4);
+  const lowPower = !!navigator.connection?.saveData || ((navigator.hardwareConcurrency || 8) <= 4) || ((navigator.deviceMemory || 8) <= 4);
   if (lowPower) root.classList.add('dbt-lite');
 
   const motion = Object.freeze({ fast: 140, normal: 260, impact: 420, cinematic: 720 });
@@ -14,14 +14,17 @@
   const emit = (type, detail = {}) => bus.dispatchEvent(new CustomEvent(type, { detail }));
 
   const haptic = (pattern = 12) => {
-    try { if (!reducedMotion && navigator.vibrate) navigator.vibrate(pattern); } catch {}
+    try {
+      const reduce = reducedMotion || root.classList.contains('dbt-reduce-motion');
+      if (!reduce && navigator.vibrate) navigator.vibrate(pattern);
+    } catch {}
   };
 
   let audioContext = null;
   const ensureAudio = () => {
     try {
       if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      if (audioContext.state === 'suspended') audioContext.resume();
+      if (audioContext.state === 'suspended') audioContext.resume().catch(() => {});
       return audioContext;
     } catch { return null; }
   };
@@ -52,28 +55,28 @@
     ['home', '#home'], ['menu', '#menu'], ['lobby', '#lobby'], ['playing', '#board'],
     ['tutorial', '#tutorial'], ['mode', '#mode'], ['setup', '#setup'], ['flex-lobby', '#lobby.screen'], ['flex-playing', '#game']
   ];
+  let screens = [];
   let activeScreen = '';
   const syncScreen = () => {
     let next = '';
-    for (const [name, selector] of screenSelectors) {
-      const el = document.querySelector(selector);
-      if (visible(el)) next = name;
+    let nextEl = null;
+    for (const [name, el] of screens) {
+      if (visible(el)) { next = name; nextEl = el; }
     }
     if (!next || next === activeScreen) return;
     activeScreen = next;
     root.dataset.dbtScreen = next;
-    const el = screenSelectors.map(([,s]) => document.querySelector(s)).find((x) => visible(x));
-    if (el && !reducedMotion) {
-      el.classList.remove('dbt-screen-enter');
-      void el.offsetWidth;
-      el.classList.add('dbt-screen-enter');
-      setTimeout(() => el.classList.remove('dbt-screen-enter'), motion.impact);
+    if (nextEl && !reducedMotion && !root.classList.contains('dbt-reduce-motion')) {
+      nextEl.classList.remove('dbt-screen-enter');
+      void nextEl.offsetWidth;
+      nextEl.classList.add('dbt-screen-enter');
+      setTimeout(() => nextEl.classList.remove('dbt-screen-enter'), motion.impact);
     }
     emit('screenchange', { screen: next });
   };
 
   const pulseTurn = (el) => {
-    if (!el || reducedMotion) return;
+    if (!el || reducedMotion || root.classList.contains('dbt-reduce-motion')) return;
     el.classList.remove('dbt-turn-pulse');
     void el.offsetWidth;
     el.classList.add('dbt-turn-pulse');
@@ -104,17 +107,22 @@
     toast._t = setTimeout(() => { el.hidden = true; }, 2500);
   };
 
-  const decorateButtons = () => {
-    document.querySelectorAll('button:not([data-dbt-premium-bound])').forEach((button) => {
-      button.dataset.dbtPremiumBound = '1';
-      button.addEventListener('pointerdown', () => {
-        if (button.disabled) return;
-        button.classList.remove('dbt-press');
-        void button.offsetWidth;
-        button.classList.add('dbt-press');
-        setTimeout(() => button.classList.remove('dbt-press'), 220);
-      }, { passive: true });
-    });
+  const bindButton = (button) => {
+    if (!(button instanceof HTMLButtonElement) || button.dataset.dbtPremiumBound) return;
+    button.dataset.dbtPremiumBound = '1';
+    button.addEventListener('pointerdown', () => {
+      if (button.disabled) return;
+      button.classList.remove('dbt-press');
+      void button.offsetWidth;
+      button.classList.add('dbt-press');
+      setTimeout(() => button.classList.remove('dbt-press'), 220);
+    }, { passive: true });
+  };
+
+  const decorateTree = (node) => {
+    if (!(node instanceof Element)) return;
+    if (node.matches('button')) bindButton(node);
+    node.querySelectorAll?.('button:not([data-dbt-premium-bound])').forEach(bindButton);
   };
 
   const upgradeThemeColor = () => {
@@ -125,23 +133,33 @@
   const syncPerformanceClass = () => {
     const hand = document.getElementById('hand');
     if (!hand) return;
-    const count = hand.children.length;
-    root.classList.toggle('dbt-heavy-hand', count >= 18);
+    root.classList.toggle('dbt-heavy-hand', hand.children.length >= 18);
   };
 
-  const observer = new MutationObserver(() => {
-    decorateButtons();
-    syncScreen();
-    syncPerformanceClass();
+  const buttonObserver = new MutationObserver((records) => {
+    for (const record of records) for (const node of record.addedNodes) decorateTree(node);
   });
+
+  const screenObserver = new MutationObserver(() => syncScreen());
+  const handObserver = new MutationObserver(() => syncPerformanceClass());
+
+  const syncAudioLifecycle = () => {
+    if (!audioContext) return;
+    if (document.visibilityState !== 'visible' && audioContext.state === 'running') audioContext.suspend().catch(() => {});
+  };
 
   const boot = () => {
     upgradeThemeColor();
-    decorateButtons();
+    decorateTree(document.body);
     observeTurn();
+    screens = screenSelectors.map(([name, selector]) => [name, document.querySelector(selector)]).filter(([,el]) => el);
     syncScreen();
     syncPerformanceClass();
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'class'] });
+    buttonObserver.observe(document.body, { childList: true, subtree: true });
+    for (const [,el] of screens) screenObserver.observe(el, { attributes: true, attributeFilter: ['hidden', 'class'] });
+    const hand = document.getElementById('hand');
+    if (hand) handObserver.observe(hand, { childList: true });
+    document.addEventListener('visibilitychange', syncAudioLifecycle);
     emit('ready', { lowPower, reducedMotion });
   };
 
