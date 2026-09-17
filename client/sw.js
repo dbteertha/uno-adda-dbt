@@ -1,7 +1,7 @@
-const CORE_CACHE='dbt-games-core-v13';
-const RUNTIME_CACHE='dbt-games-runtime-v13';
+const CORE_CACHE='dbt-games-core-v14';
+const RUNTIME_CACHE='dbt-games-runtime-v14';
 const CACHE_PREFIX='dbt-games-';
-const MAX_RUNTIME_ENTRIES=136;
+const MAX_RUNTIME_ENTRIES=140;
 const CORE=[
   '/', '/flex/', '/arena', '/arena.html', '/manifest.webmanifest',
   '/style.css','/launcher.css','/flex-home.css','/premium.css','/live-hub.css','/arena.css','/arena.js',
@@ -18,7 +18,7 @@ const CORE=[
   '/premium-diagnostics.css','/premium-diagnostics.js','/premium-safety.css','/premium-safety.js',
   '/premium-competition.css','/premium-competition.js',
   '/voice-chat.css','/voice-chat.js',
-  '/flex/flex.css','/flex/flex-premium.css','/flex/socket-hook.js','/flex/flex.js','/flex/enhancements.js',
+  '/flex/flex.css','/flex/flex-premium.css','/flex/socket-hook.js','/flex/flex.js','/flex/enhancements.js','/flex/privacy.css','/flex/privacy.js',
   '/dbt-app-icon.svg','/dbt-app-icon-maskable.svg'
 ];
 
