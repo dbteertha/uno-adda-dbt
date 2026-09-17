@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "node --import tsx --watch src/main.ts",
-    "build": "tsc",
+    "build": "tsc && npm test",
     "start": "node --env-file-if-exists=.env dist/main.js",
     "test": "node --import tsx --test tests/*.test.ts",
     "check": "tsc --noEmit",
