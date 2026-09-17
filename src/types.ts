@@ -3,6 +3,7 @@ export type PlayColor = Exclude<UnoColor, "WILD">;
 export type UnoValue =
   | "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
   | "SKIP" | "REVERSE" | "DRAW_TWO" | "WILD" | "WILD_DRAW_FOUR" | "DEVIL";
+export type RoomVisibility = "public" | "private" | "invite";
 
 export interface UnoCard { id: string; color: UnoColor; value: UnoValue; }
 
@@ -50,6 +51,7 @@ export interface PublicPlayer {
   connected: boolean;
   isReady: boolean;
   isMe: boolean;
+  isHost: boolean;
   isCurrent: boolean;
   cardCount: number;
   score: number;
@@ -97,4 +99,6 @@ export interface ClientSyncPayload {
   round: number;
   resultReason: string | null;
   lastEvent: GameEvent | null;
+  roomVisibility: RoomVisibility;
+  inviteKey: string | null;
 }
